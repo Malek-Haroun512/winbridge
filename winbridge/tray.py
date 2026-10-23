@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import fcntl
 import os
+import subprocess
 import sys
 from pathlib import Path
 
@@ -12,8 +13,7 @@ from PySide6.QtGui import QAction, QColor, QFont, QIcon, QLinearGradient, QPaint
 from PySide6.QtWidgets import QApplication, QMenu, QMessageBox, QSystemTrayIcon
 
 from . import __app_name__, __version__
-from . import config as cfgmod
-from . import rdp, setup_guest, vbox
+from . import config as cfgmod, rdp, setup_guest, vbox
 from .config import Config
 
 
@@ -70,6 +70,54 @@ class Tray:
         header.setEnabled(False)
         self.menu.addAction(header)
         self.menu.addSeparator()
+
+        # -- VM power controls
+        vm_menu = self.menu.addMenu(
+            QIcon.fromTheme("system-run"), "إدارة الجهاز"
+        )
+        if self.cfg.vm:
+            try:
+                running = vbox.is_running(self.cfg.vm)
+            except vbox.VBoxError:
+                running = False
+        else:
+            running = False
+
+        if running:
+            self_shutdown = QAction(
+                QIcon.fromTheme("system-shutdown"), "إطفاء الجهاز", vm_menu
+            )
+            self_shutdown.triggered.connect(self._vm_shutdown)
+            vm_menu.addAction(self_shutdown)
+
+            restart = QAction(
+                QIcon.fromTheme("view-refresh"), "إعادة تشغيل الجهاز", vm_menu
+            )
+            restart.triggered.connect(self._vm_restart)
+            vm_menu.addAction(restart)
+        else:
+            start = QAction(
+                QIcon.fromTheme("media-playback-start"), "تشغيل الجهاز", vm_menu
+            )
+            start.triggered.connect(self._vm_start)
+            vm_menu.addAction(start)
+            start_gui = QAction(
+                QIcon.fromTheme("media-playback-start"), "تشغيل مع واجهة", vm_menu
+            )
+            start_gui.triggered.connect(self._vm_start_gui)
+            vm_menu.addAction(start_gui)
+
+        open_vm = QAction(
+            QIcon.fromTheme("utilities-terminal"), "فتح نافذة الجهاز", vm_menu
+        )
+        open_vm.triggered.connect(self._open_vm_console)
+        vm_menu.addAction(open_vm)
+
+        prepare = QAction(
+            QIcon.fromTheme("document-properties"), "تهيئة إعدادات المضيف", vm_menu
+        )
+        prepare.triggered.connect(self._open_settings)
+        vm_menu.addAction(prepare)
 
         desktop = QAction(QIcon.fromTheme("video-display"), "سطح مكتب ويندوز", self.menu)
         desktop.triggered.connect(self._launch_desktop)
@@ -162,6 +210,60 @@ class Tray:
     def _on_activated(self, reason) -> None:
         if reason == QSystemTrayIcon.Trigger:
             self._launch_desktop()
+
+    def _vm_start(self) -> None:
+        if not self.cfg.vm:
+            self._notify("اختر جهازًا في الإعدادات أولًا.", error=True)
+            return
+        try:
+            vbox.start_headless(self.cfg.vm)
+            self._notify(f"تم تشغيل {self.cfg.vm} headless")
+            QTimer.singleShot(5000, self._rebuild)
+        except vbox.VBoxError as exc:
+            self._notify(str(exc), error=True)
+
+    def _vm_start_gui(self) -> None:
+        if not self.cfg.vm:
+            self._notify("اختر جهازًا في الإعدادات أولًا.", error=True)
+            return
+        try:
+            vbox.start_gui(self.cfg.vm)
+            self._notify(f"تم تشغيل {self.cfg.vm} مع واجهة")
+            QTimer.singleShot(5000, self._rebuild)
+        except vbox.VBoxError as exc:
+            self._notify(str(exc), error=True)
+
+    def _vm_shutdown(self) -> None:
+        if not self.cfg.vm:
+            return
+        try:
+            log_msg = [None]
+            def log(m: str) -> None:
+                log_msg[0] = m
+            setup_guest.prepare_host(self.cfg.vm, self.cfg, log=log)
+            self._notify(f"تم إطفاء {self.cfg.vm}")
+            QTimer.singleShot(1000, self._rebuild)
+        except vbox.VBoxError as exc:
+            self._notify(str(exc), error=True)
+
+    def _vm_restart(self) -> None:
+        if not self.cfg.vm:
+            return
+        try:
+            vbox.run(["controlvm", self.cfg.vm, "reset"], check=False)
+            self._notify(f"أُعيد تشغيل {self.cfg.vm}")
+            QTimer.singleShot(8000, self._rebuild)
+        except vbox.VBoxError as exc:
+            self._notify(str(exc), error=True)
+
+    def _open_vm_console(self) -> None:
+        if not self.cfg.vm:
+            self._notify("اختر جهازًا في الإعدادات أولًا.", error=True)
+            return
+        try:
+            subprocess.Popen(["virtualbox"])
+        except FileNotFoundError:
+            self._notify("لم أجد VirtualBox GUI. ثبّته أو شغّله يدويًا.")
 
     def _notify(self, message: str, error: bool = False) -> None:
         icon = QSystemTrayIcon.Critical if error else QSystemTrayIcon.Information

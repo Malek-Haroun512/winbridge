@@ -45,6 +45,8 @@ Nothing listens on an external interface: the port forward is bound to
 - 🖥️ Full Windows desktop in one window, or **one window per app (RAIL)**.
 - 🔌 **USB passthrough from the tray** — plug/unplug any host device into the
   VM with a checkbox; state (`Captured`) is read back from VirtualBox.
+- 🔌 **VM power controls** — start, stop, restart, or open the VM console
+  directly from the tray menu.
 - 🚀 Auto-starts the VM headless when you open an app, so the tray icon is all
   you need.
 - 🧩 App list stored in `~/.config/winbridge/config.json` (name → Windows path).
