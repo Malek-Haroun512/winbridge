@@ -8,6 +8,7 @@ import subprocess
 from dataclasses import dataclass, field
 
 from . import __app_name__
+from .i18n import t
 
 
 class VBoxError(RuntimeError):
@@ -17,10 +18,7 @@ class VBoxError(RuntimeError):
 def vbox_bin() -> str:
     exe = shutil.which("VBoxManage")
     if not exe:
-        raise VBoxError(
-            "VBoxManage غير موجود في PATH.\n"
-            "ثبّت VirtualBox أولًا (مثال: sudo pacman -S virtualbox virtualbox-host-modules-arch)."
-        )
+        raise VBoxError(t("err_vboxmanage_missing"))
     return exe
 
 
@@ -34,13 +32,13 @@ def run(args: list[str], timeout: int = 60, check: bool = True) -> str:
             timeout=timeout,
         )
     except subprocess.TimeoutExpired as exc:  # pragma: no cover - environment dependent
-        raise VBoxError(f"انتهت مهلة VBoxManage {' '.join(args)}") from exc
+        raise VBoxError(t("err_timeout", args=" ".join(args))) from exc
     except OSError as exc:
         raise VBoxError(str(exc)) from exc
 
     output = f"{proc.stdout or ''}{proc.stderr or ''}".strip()
     if check and proc.returncode != 0:
-        raise VBoxError(output or f"VBoxManage {' '.join(args)} فشل")
+        raise VBoxError(output or t("err_vbox_failed", args=" ".join(args)))
     return output
 
 
@@ -153,10 +151,7 @@ def ensure_port_forward(vm: str, host_port: int, guest_port: int = 3389,
         if len(parts) >= 6 and parts[1] == "tcp" and parts[5].strip() == str(guest_port):
             return False
     if info.get("nic1") != "nat" and info.get("natnet1", "") == "":
-        raise VBoxError(
-            f"الجهاز {vm} لا يستخدم شبكة NAT على المنفذ الأول. "
-            "عدّل إعدادات الشبكة إلى NAT ثم أعد المحاولة."
-        )
+        raise VBoxError(t("err_nat_required", vm=vm))
     suffix = "1" if info.get("nic1") == "nat" else "2"
     run([
         "modifyvm", vm,
@@ -268,10 +263,10 @@ def ensure_usb_controller(vm: str) -> str:
     Returns a human readable description of what was enabled.
     """
     if is_running(vm):
-        raise VBoxError("لتفعيل منفذ USB يجب إطفاء الجهاز أولًا.")
+        raise VBoxError(t("err_usb_poweroff"))
     info = machine_info(vm)
     if info.get("usb") == "on":
-        return "موجود"
+        return t("usb_controller_present")
     extpack = has_usb_extpack()
     args = ["modifyvm", vm, "--usb", "on"]
     desc = "USB 1.1 (OHCI)"

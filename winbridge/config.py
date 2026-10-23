@@ -42,6 +42,7 @@ class Config:
     apps: list[AppEntry] = field(default_factory=list)
     start_vm: bool = True
     usb_capture_on_start: bool = False
+    language: str = "auto"
 
     # ---------------------------------------------------------------- helpers
 

@@ -6,6 +6,7 @@ from pathlib import Path
 
 from . import config as cfgmod
 from . import vbox
+from .i18n import t
 
 SETUP_SCRIPT = r"""@echo off
 setlocal
@@ -60,15 +61,9 @@ echo.
 pause
 """
 
-INSTRUCTIONS = """\
-جهّز النسخة داخل ويندوز:
-
-1. اضغط «تشغيل الجهاز نافذةً» لفتح شاشة VirtualBox.
-2. سجّل الدخول إلى ويندوز.
-3. انسخ الملف `winbridge-setup.cmd` إلى ويندوز (مثلًا عبر السحب والإفلات
-   أو المجلد المشترك) وشغّله كمسؤول (Run as administrator).
-4. ارجع إلى WinBridge واضغط «اختبر الاتصال».
-"""
+def instructions() -> str:
+    """Guest preparation steps, in the active interface language."""
+    return t("instructions_guest")
 
 
 def render_guest_script(cfg: cfgmod.Config, nla: bool = False) -> str:
@@ -90,24 +85,22 @@ def write_guest_script(cfg: cfgmod.Config, directory: Path | None = None,
 def prepare_host(vm: str, cfg: cfgmod.Config, log=print) -> None:
     """Apply every host-side setting needed for RDP + USB."""
     if vbox.is_running(vm):
-        log("إطفاء الجهاز لتعديل إعداداته …")
+        log(t("log_stopping_vm"))
         if not vbox.acpi_power_button(vm, timeout=30):
-            log("  ACPI لم ينجح — محاولة عبر Guest Additions …")
+            log(t("log_acpi_failed"))
             if not vbox.guest_shutdown(vm, cfg.user, cfg.password):
-                raise vbox.VBoxError(
-                    "تعذّر إطفاء الجهاز. أطفئه يدويًا من VirtualBox ثم أعد المحاولة."
-                )
+                raise vbox.VBoxError(t("err_poweroff_failed"))
 
-    log("إضافة تحويل منفذ RDP …")
+    log(t("log_adding_forward"))
     added = vbox.ensure_port_forward(
         vm, cfg.port, guest_port=cfg.guest_port, host_ip=cfg.host
     )
-    log("  منفذ جديد أُضيف" if added else "  المنفذ موجود مسبقًا")
+    log(t("log_forward_added") if added else t("log_forward_exists"))
 
-    log("تفعيل وحدة USB …")
+    log(t("log_usb_enable"))
     try:
         log(f"  {vbox.ensure_usb_controller(vm)}")
     except vbox.VBoxError as exc:
-        log(f"  تحذير: {exc}")
+        log(t("log_warning", message=exc))
     if not vbox.has_usb_extpack():
-        log("  ملاحظة: Extension Pack غير مثبّت ← USB 1.1 فقط.")
+        log(t("log_extpack_missing"))

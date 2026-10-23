@@ -7,7 +7,8 @@ import sys
 
 from . import __app_name__, __version__
 from . import config as cfgmod
-from . import rdp, setup_guest, vbox
+from . import i18n, rdp, setup_guest, vbox
+from .i18n import t
 
 
 def _resolve_app(value: str) -> tuple[str, str]:
@@ -36,7 +37,9 @@ def cmd_usb(args: argparse.Namespace) -> int:
     if args.action == "list":
         for device in vbox.usb_devices():
             mark = "✓" if device.captured else " "
-            print(f"{mark} {device.uuid}  {device.vendor_id}:{device.product_id}  {device.label}  [{device.state}]")
+            print(t("cli_usb_line", mark=mark, uuid=device.uuid,
+                    ids=f"{device.vendor_id}:{device.product_id}",
+                    label=device.label, state=device.state))
         return 0
 
     match = None
@@ -45,17 +48,17 @@ def cmd_usb(args: argparse.Namespace) -> int:
             match = device
             break
     if not match:
-        print(f"لم أجد جهاز USB مطابقًا لـ {args.target}", file=sys.stderr)
+        print(t("cli_usb_no_match", target=args.target), file=sys.stderr)
         return 1
     if not cfg.vm:
-        print("لم يتم ضبط الجهاز في الإعدادات.", file=sys.stderr)
+        print(t("cli_usb_no_vm"), file=sys.stderr)
         return 1
     if args.action == "attach":
         vbox.usb_attach(cfg.vm, match.uuid)
-        print(f"وُصل {match.label}")
+        print(t("cli_usb_attached", device=match.label))
     else:
         vbox.usb_detach(cfg.vm, match.uuid)
-        print(f"فُصل {match.label}")
+        print(t("cli_usb_detached", device=match.label))
     return 0
 
 
@@ -65,67 +68,104 @@ def cmd_setup(args: argparse.Namespace) -> int:
         cfg.vm = args.vm
         cfgmod.save(cfg)
     if not cfg.vm:
-        print("حدّد الجهاز: winbridge setup --vm <name>", file=sys.stderr)
+        print(t("cli_setup_need_vm"), file=sys.stderr)
         return 1
     setup_guest.prepare_host(cfg.vm, cfg, log=print)
     path = setup_guest.write_guest_script(cfg)
-    print(f"\nسكربت ويندوز: {path}\n")
-    print(setup_guest.INSTRUCTIONS)
+    print(f"\n{t('log_script_written', path=path)}\n")
+    print(setup_guest.instructions())
     if not args.no_start:
         vbox.start_headless(cfg.vm)
         if rdp.wait_for_port(cfg.host, cfg.port, timeout=240):
-            print(f"RDP جاهز على {cfg.host}:{cfg.port}")
+            print(t("log_rdp_ready", host=cfg.host, port=cfg.port))
     return 0
 
 
 def cmd_doctor(_args: argparse.Namespace) -> int:
     print(f"{__app_name__} {__version__}")
     try:
-        print(f"VBoxManage: {vbox.vbox_bin()} ({vbox.version()})")
+        print(f"{t('lbl_vboxmanage')}: {vbox.vbox_bin()} ({vbox.version()})")
         print(f"VMs: {', '.join(vbox.list_vms()) or '—'}")
     except vbox.VBoxError as exc:
-        print(f"VBoxManage: {exc}")
+        print(f"{t('lbl_vboxmanage')}: {exc}")
     try:
-        print(f"FreeRDP: {rdp.freerdp_bin()}")
+        print(f"{t('lbl_freerdp')}: {rdp.freerdp_bin()}")
     except rdp.RdpError as exc:
-        print(f"FreeRDP: {exc}")
-    print(f"Extension Pack: {'مثبّت' if vbox.has_usb_extpack() else 'غير مثبّت (USB 1.1 فقط)'}")
+        print(f"{t('lbl_freerdp')}: {exc}")
+    print(
+        f"{t('lbl_extpack')}: "
+        f"{t('cli_extpack_yes') if vbox.has_usb_extpack() else t('cli_extpack_no')}"
+    )
     cfg = cfgmod.load()
-    print(f"Config: {cfgmod.CONFIG_PATH} (vm={cfg.vm or '—'}, port={cfg.port})")
+    print(f"{t('lbl_config')}: {cfgmod.CONFIG_PATH} (vm={cfg.vm or '—'}, port={cfg.port})")
     if cfg.vm:
-        print(f"VM running: {'نعم' if vbox.is_running(cfg.vm) else 'لا'}")
-        print(f"RDP port open: {'نعم' if rdp.port_open(cfg.host, cfg.port) else 'لا'}")
+        yes, no = t("common_yes"), t("common_no")
+        print(f"{t('lbl_vm_running')}: {yes if vbox.is_running(cfg.vm) else no}")
+        print(f"{t('lbl_rdp_port')}: {yes if rdp.port_open(cfg.host, cfg.port) else no}")
         try:
             devices = [d for d in vbox.usb_devices() if d.captured]
-            print(f"USB captured: {', '.join(d.label for d in devices) or '—'}")
+            print(t("cli_usb_captured", devices=", ".join(d.label for d in devices) or "—"))
         except vbox.VBoxError:
             pass
     return 0
 
 
+class _Formatter(argparse.HelpFormatter):
+    """Help formatter with a translated ``usage:`` prefix."""
+
+    def add_usage(self, usage, actions, groups, prefix=None):
+        if prefix is None:
+            prefix = f"{t('help_usage')} "
+        return super().add_usage(usage, actions, groups, prefix)
+
+
+def _localize(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
+    parser._positionals.title = t("help_positional")  # noqa: SLF001 - argparse API
+    parser._optionals.title = t("help_options")  # noqa: SLF001 - argparse API
+    return parser
+
+
+def _subparser(sub, name: str, **kwargs) -> argparse.ArgumentParser:
+    parser = sub.add_parser(
+        name, add_help=False, formatter_class=_Formatter, **kwargs
+    )
+    parser.add_argument("-h", "--help", action="help", help=t("help_help"))
+    return _localize(parser)
+
+
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="winbridge", description=f"{__app_name__} — Windows apps on Linux via VirtualBox")
-    parser.add_argument("--version", action="version", version=__version__)
+    cfg = cfgmod.load()
+    i18n.set_language(cfg.language if cfg.language != "auto" else i18n.detect())
+
+    parser = _localize(argparse.ArgumentParser(
+        prog="winbridge",
+        description=f"{__app_name__} — Windows apps on Linux via VirtualBox",
+        add_help=False,
+        formatter_class=_Formatter,
+    ))
+    parser.add_argument("-h", "--help", action="help", help=t("help_help"))
+    parser.add_argument("--version", action="version", version=__version__,
+                        help=t("help_version"))
     sub = parser.add_subparsers(dest="command")
 
-    sub.add_parser("tray", help="تشغيل أيقونة شريط المهام")
-    sub.add_parser("desktop", help="فتح سطح مكتب ويندوز").set_defaults(func=cmd_desktop)
+    _subparser(sub, "tray", help=t("cli_tray_help"))
+    _subparser(sub, "desktop", help=t("cli_desktop_help")).set_defaults(func=cmd_desktop)
 
-    app_parser = sub.add_parser("app", help="تشغيل تطبيق ويندوز بنافذة منفصلة")
-    app_parser.add_argument("name", help="اسم التطبيق من الإعدادات أو مسار exe")
+    app_parser = _subparser(sub, "app", help=t("cli_app_help"))
+    app_parser.add_argument("name", help=t("cli_app_name_help"))
     app_parser.set_defaults(func=cmd_app)
 
-    usb_parser = sub.add_parser("usb", help="إدارة أجهزة USB")
+    usb_parser = _subparser(sub, "usb", help=t("cli_usb_help"))
     usb_parser.add_argument("action", choices=["list", "attach", "detach"])
-    usb_parser.add_argument("target", nargs="?", default="", help="UUID أو جزء من الاسم")
+    usb_parser.add_argument("target", nargs="?", default="", help=t("cli_usb_target_help"))
     usb_parser.set_defaults(func=cmd_usb)
 
-    setup_parser = sub.add_parser("setup", help="تهيئة الجهاز من جهة لينكس")
-    setup_parser.add_argument("--vm", help="اسم جهاز VirtualBox")
+    setup_parser = _subparser(sub, "setup", help=t("cli_setup_help"))
+    setup_parser.add_argument("--vm", help=t("cli_setup_vm_help"))
     setup_parser.add_argument("--no-start", action="store_true")
     setup_parser.set_defaults(func=cmd_setup)
 
-    sub.add_parser("doctor", help="فحص المتطلبات").set_defaults(func=cmd_doctor)
+    _subparser(sub, "doctor", help=t("cli_doctor_help")).set_defaults(func=cmd_doctor)
 
     args = parser.parse_args(argv)
     if args.command == "tray" or not args.command:

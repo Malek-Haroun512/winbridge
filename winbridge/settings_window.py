@@ -1,8 +1,6 @@
-"""Settings / first-run window (PySide6)."""
+"""Settings / first-run window (PySide6), bilingual (English / العربية)."""
 
 from __future__ import annotations
-
-from pathlib import Path
 
 from PySide6.QtCore import QThread, Qt, Signal
 from PySide6.QtGui import QIcon
@@ -12,7 +10,6 @@ from PySide6.QtWidgets import (
     QComboBox,
     QDialog,
     QDialogButtonBox,
-    QFileDialog,
     QFormLayout,
     QGroupBox,
     QHBoxLayout,
@@ -30,9 +27,9 @@ from PySide6.QtWidgets import (
 )
 
 from . import __app_name__
-from . import config as cfgmod
-from . import rdp, setup_guest, vbox
+from . import config as cfgmod, rdp, setup_guest, vbox, i18n
 from .config import AppEntry, Config
+from .i18n import t
 
 
 class Worker(QThread):
@@ -56,7 +53,9 @@ class SettingsDialog(QDialog):
         super().__init__(parent)
         self.cfg = cfg
         self.worker: Worker | None = None
-        self.setWindowTitle(f"{__app_name__} — الإعدادات")
+        if i18n.is_rtl():
+            self.setLayoutDirection(Qt.RightToLeft)
+        self.setWindowTitle(t("win_title", app=__app_name__))
         self.setMinimumWidth(720)
         self._build()
         self._load()
@@ -66,28 +65,28 @@ class SettingsDialog(QDialog):
     def _build(self) -> None:
         outer = QVBoxLayout(self)
 
-        # -- connection -------------------------------------------------
-        conn = QGroupBox("الاتصال بجهاز VirtualBox")
+        # -- connection --------------------------------------------------
+        conn = QGroupBox(t("group_connection"))
         form = QFormLayout(conn)
 
         vm_row = QHBoxLayout()
         self.vm_combo = QComboBox()
         self.vm_combo.setEditable(True)
-        refresh = QPushButton("تحديث")
+        refresh = QPushButton(t("btn_refresh"))
         refresh.setIcon(QIcon.fromTheme("view-refresh"))
         refresh.clicked.connect(self._reload_vms)
         vm_row.addWidget(self.vm_combo, 1)
         vm_row.addWidget(refresh)
-        form.addRow("الجهاز:", vm_row)
+        form.addRow(t("lbl_machine"), vm_row)
 
         self.host_edit = QLineEdit()
         self.port_spin = QSpinBox()
         self.port_spin.setRange(1024, 65535)
         host_row = QHBoxLayout()
         host_row.addWidget(self.host_edit, 2)
-        host_row.addWidget(QLabel("المنفذ:"))
+        host_row.addWidget(QLabel(t("lbl_port")))
         host_row.addWidget(self.port_spin)
-        form.addRow("العنوان:", host_row)
+        form.addRow(t("lbl_address"), host_row)
 
         self.user_edit = QLineEdit()
         self.pass_edit = QLineEdit()
@@ -103,27 +102,39 @@ class SettingsDialog(QDialog):
         pass_row = QHBoxLayout()
         pass_row.addWidget(self.pass_edit, 1)
         pass_row.addWidget(show)
-        form.addRow("المستخدم:", self.user_edit)
-        form.addRow("كلمة السر:", pass_row)
+        form.addRow(t("lbl_user"), self.user_edit)
+        form.addRow(t("lbl_password"), pass_row)
 
-        self.start_check = QCheckBox("تشغيل الجهاز تلقائيًا (headless) عند فتح تطبيق")
+        self.start_check = QCheckBox(t("chk_autostart"))
         form.addRow("", self.start_check)
         outer.addWidget(conn)
 
+        # -- language ----------------------------------------------------
+        lang_box = QGroupBox(t("group_language"))
+        lang_form = QFormLayout(lang_box)
+        self.lang_combo = QComboBox()
+        self.lang_combo.addItem(t("lang_auto"), "auto")
+        for code, label in i18n.LANGUAGES.items():
+            self.lang_combo.addItem(label, code)
+        lang_form.addRow(t("lbl_language"), self.lang_combo)
+        outer.addWidget(lang_box)
+
         # -- apps --------------------------------------------------------
-        apps_box = QGroupBox("التطبيقات")
+        apps_box = QGroupBox(t("group_apps"))
         apps_layout = QVBoxLayout(apps_box)
         self.table = QTableWidget(0, 2)
-        self.table.setHorizontalHeaderLabels(["الاسم", "المسار داخل ويندوز"])
+        self.table.setHorizontalHeaderLabels([t("col_name"), t("col_path")])
         self.table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
         apps_layout.addWidget(self.table)
 
         buttons = QHBoxLayout()
-        add = QPushButton("إضافة")
+        add = QPushButton(t("btn_add"))
         add.setIcon(QIcon.fromTheme("list-add"))
-        remove = QPushButton("حذف")
+        remove = QPushButton(t("btn_remove"))
         remove.setIcon(QIcon.fromTheme("list-remove"))
-        add.clicked.connect(lambda: self._add_row("تطبيق جديد", "C:\\Windows\\System32\\notepad.exe"))
+        add.clicked.connect(
+            lambda: self._add_row(t("new_app_name"), "C:\\Windows\\System32\\notepad.exe")
+        )
         remove.clicked.connect(self._remove_row)
         buttons.addWidget(add)
         buttons.addWidget(remove)
@@ -133,13 +144,13 @@ class SettingsDialog(QDialog):
 
         # -- actions -----------------------------------------------------
         actions = QHBoxLayout()
-        self.prepare_btn = QPushButton("جهّز الجهاز (المضيف)")
-        self.prepare_btn.setToolTip("إضافة تحويل المنفذ + تفعيل USB + إقلاع الجهاز")
+        self.prepare_btn = QPushButton(t("menu_vm_prepare"))
+        self.prepare_btn.setToolTip(t("tip_prepare"))
         self.prepare_btn.clicked.connect(self._prepare)
-        self.script_btn = QPushButton("اكتب سكربت ويندوز")
-        self.script_btn.setToolTip("ينشئ winbridge-setup.cmd لتشغيله مرة واحدة داخل ويندوز")
+        self.script_btn = QPushButton(t("btn_write_script"))
+        self.script_btn.setToolTip(t("tip_script"))
         self.script_btn.clicked.connect(self._write_script)
-        self.test_btn = QPushButton("اختبر الاتصال")
+        self.test_btn = QPushButton(t("btn_test_connection"))
         self.test_btn.clicked.connect(self._test)
         actions.addWidget(self.prepare_btn)
         actions.addWidget(self.script_btn)
@@ -154,11 +165,13 @@ class SettingsDialog(QDialog):
         outer.addWidget(self.log_view)
 
         box = QDialogButtonBox(QDialogButtonBox.Save | QDialogButtonBox.Close)
+        box.button(QDialogButtonBox.Save).setText(t("btn_save"))
+        box.button(QDialogButtonBox.Close).setText(t("btn_close"))
         box.accepted.connect(self._save_and_close)
         box.rejected.connect(self.reject)
         outer.addWidget(box)
 
-    # ------------------------------------------------------------- helpers
+    # -------------------------------------------------------------- helpers
 
     def _load(self) -> None:
         self._reload_vms()
@@ -167,6 +180,8 @@ class SettingsDialog(QDialog):
         self.user_edit.setText(self.cfg.user)
         self.pass_edit.setText(self.cfg.password)
         self.start_check.setChecked(self.cfg.start_vm)
+        index = self.lang_combo.findData(self.cfg.language)
+        self.lang_combo.setCurrentIndex(index if index >= 0 else 0)
         for app in self.cfg.apps:
             self._add_row(app.name, app.target, app.icon)
 
@@ -220,6 +235,7 @@ class SettingsDialog(QDialog):
         self.cfg.password = self.pass_edit.text()
         self.cfg.start_vm = self.start_check.isChecked()
         self.cfg.apps = apps
+        self.cfg.language = self.lang_combo.currentData() or "auto"
         return self.cfg
 
     def _log(self, message: str) -> None:
@@ -229,29 +245,29 @@ class SettingsDialog(QDialog):
         for widget in (self.prepare_btn, self.script_btn, self.test_btn):
             widget.setEnabled(not busy)
 
-    # ------------------------------------------------------------- actions
+    # -------------------------------------------------------------- actions
 
     def _prepare(self) -> None:
         cfg = self._collect()
         if not cfg.vm:
-            QMessageBox.warning(self, __app_name__, "اختر جهاز VirtualBox أولًا.")
+            QMessageBox.warning(self, __app_name__, t("msg_choose_vm"))
             return
         self._busy(True)
-        self._log(f"— تهيئة {cfg.vm} —")
+        self._log(t("log_preparing", vm=cfg.vm))
 
         def job(log):
             setup_guest.prepare_host(cfg.vm, cfg, log=log)
-            log("إقلاع الجهاز …")
+            log(t("log_booting"))
             vbox.start_headless(cfg.vm)
             if rdp.wait_for_port(cfg.host, cfg.port, timeout=240):
-                log(f"RDP جاهز على {cfg.host}:{cfg.port}")
+                log(t("log_rdp_ready", host=cfg.host, port=cfg.port))
             else:
-                log("لم يُفتح منفذ RDP بعد — شغّل سكربت ويندوز داخل الجهاز.")
+                log(t("log_rdp_not_ready"))
             try:
                 path = setup_guest.write_guest_script(cfg)
-                log(f"سكربت ويندوز: {path}")
+                log(t("log_script_written", path=path))
             except OSError as exc:
-                log(f"تعذّر كتابة السكربت: {exc}")
+                log(t("log_script_failed", message=exc))
 
         self.worker = Worker(job, self)
         self.worker.line.connect(self._log)
@@ -261,28 +277,29 @@ class SettingsDialog(QDialog):
     def _write_script(self) -> None:
         cfg = self._collect()
         path = setup_guest.write_guest_script(cfg)
-        self._log(f"كُتب: {path}")
+        self._log(t("log_script_written", path=path))
         QMessageBox.information(
             self,
             __app_name__,
-            f"حُفظ السكربت في:\n{path}\n\n"
-            + setup_guest.INSTRUCTIONS,
+            t("msg_script_saved", path=path, instructions=setup_guest.instructions()),
         )
 
     def _test(self) -> None:
         cfg = self._collect()
         if rdp.port_open(cfg.host, cfg.port):
-            self._log(f"✔ منفذ RDP مفتوح على {cfg.host}:{cfg.port}")
+            self._log(t("log_port_open", host=cfg.host, port=cfg.port))
         else:
-            self._log(f"✘ لا يوجد رد على {cfg.host}:{cfg.port}")
+            self._log(t("log_port_closed", host=cfg.host, port=cfg.port))
 
     def _worker_done(self, ok: bool, message: str) -> None:
         self._busy(False)
         if not ok:
-            self._log(f"خطأ: {message}")
+            self._log(t("log_error", message=message))
 
     def _save_and_close(self) -> None:
-        cfgmod.save(self._collect())
+        cfg = self._collect()
+        cfgmod.save(cfg)
+        i18n.set_language(cfg.language if cfg.language != "auto" else i18n.detect())
         self.accept()
 
 

@@ -9,7 +9,7 @@ description = "Run Windows applications from a VirtualBox VM as native Linux win
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
-authors = [{ name = "WinBridge contributors" }]
+authors = [{ name = "Malek Haroun", email = "malekharoun512@outlook.com" }]
 keywords = ["virtualbox", "rdp", "freerdp", "rail", "windows", "linux"]
 classifiers = [
   "Environment :: X11 Applications :: Qt",

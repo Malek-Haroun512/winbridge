@@ -5,12 +5,9 @@ windows** — no full desktop in the way, no proprietary cloud, no patched
 `termsrv.dll`. WinBridge is a small, hackable, MIT-licensed alternative to
 WinBoat / WinApps that plugs into a Windows VM **you already have**.
 
-> **البدء السريع (عربي):** ثبّت `virtualbox` + `freerdp` + `PySide6`، ثم
-> `./install.sh`، ثم `winbridge tray` من قائمة التطبيقات. من الإعدادات اختر
-> جهازك → «جهّز الجهاز (المضيف)» → «اكتب سكربت ويندوز» → شغّل
-> `winbridge-setup.cmd` كمسؤول داخل ويندوز مرة واحدة. بعدها كل تطبيق تفتحه
-> من الأيقونة بيطلع بنافذة لينكس منفصلة، وقائمة USB بتخليك توصل أجهزتك
-> بالجهاز بضغطة.
+The interface is available in **English and Arabic** (RTL-aware). The language
+follows your desktop locale automatically and can be changed at any time in
+*Settings → Language*.
 
 ---
 
@@ -31,8 +28,9 @@ WinBoat / WinApps that plugs into a Windows VM **you already have**.
    `3389`), enables the VM's USB controller and boots it headless.
 2. **Guest settings** — a generated `winbridge-setup.cmd` enables Remote
    Desktop, disables NLA (so plain TLS works even on hosts with a broken
-   Kerberos config), opens the firewall and sets `TSAppAllowList\fDisabledAllowList=1`
-   so **any** executable can be published as a RemoteApp.
+   Kerberos config), opens the firewall and sets
+   `TSAppAllowList\fDisabledAllowList=1` so **any** executable can be
+   published as a RemoteApp.
 3. **Running apps** — FreeRDP connects with `/app:program:...` (RAIL), so only
    the application window is streamed and it behaves like a normal X11/Wayland
    window: taskbar entry, alt-tab, clipboard, window manager decorations.
@@ -45,11 +43,15 @@ Nothing listens on an external interface: the port forward is bound to
 - 🖥️ Full Windows desktop in one window, or **one window per app (RAIL)**.
 - 🔌 **USB passthrough from the tray** — plug/unplug any host device into the
   VM with a checkbox; state (`Captured`) is read back from VirtualBox.
-- 🔌 **VM power controls** — start, stop, restart, or open the VM console
-  directly from the tray menu.
+- ⚡ **VM power controls** — start headless, start with GUI, shut down,
+  restart, or open the VM console directly from the tray menu.
 - 🚀 Auto-starts the VM headless when you open an app, so the tray icon is all
   you need.
 - 🧩 App list stored in `~/.config/winbridge/config.json` (name → Windows path).
+  `explorer` (File Explorer / *This PC*) works out of the box, as does any
+  `.exe` path you add.
+- 🌍 **English + Arabic interface** with automatic RTL layout; pick a language
+  in Settings or force one with `WINBRIDGE_LANG=en|ar`.
 - 🔐 Credentials stay local; config file is `chmod 600`.
 - 🩺 `winbridge doctor` checks every dependency and connection state.
 - 🧱 No kernel patches, no RDPWrap, no reverse-engineered binaries.
@@ -87,25 +89,26 @@ winbridge tray        # icon appears in the system tray
    Additions. Boot it once and create your user (or let WinBridge use an
    existing one).
 2. **Open WinBridge → Settings**, pick the VM, fill user/password (the same
-   Windows account), press **«جهّز الجهاز (المضيف)»**. This powers the VM off,
+   Windows account), press **Prepare host settings**. This powers the VM off,
    adds the NAT rule, enables USB, boots it headless and writes
    `~/.config/winbridge/winbridge-setup.cmd`.
 3. **Inside Windows** copy that `.cmd` in, right-click → *Run as
    administrator*, wait for `3389 … LISTENING`.
-4. Back in Settings press **اختبر الاتصال**. Then open an app from the tray.
+4. Back in Settings press **Test connection**. Then open an app from the tray.
 
-Add the apps you want in **Settings → التطبيقات** (name + `C:\full\path.exe`).
+Add the apps you want in **Settings → Applications** (name + `C:\full\path.exe`).
 They show up in the tray menu and can be launched from the CLI:
 
 ```bash
 winbridge app 3utools
 winbridge app 'C:\Program Files\Some App\app.exe'
+winbridge app explorer
 winbridge desktop
 ```
 
 ## USB passthrough
 
-Tray icon → **أجهزة USB** → tick a device to attach, untick to detach.
+Tray icon → **USB devices** → tick a device to attach, untick to detach.
 
 ```bash
 winbridge usb list
@@ -118,6 +121,15 @@ opens. A device that is already `Captured` is shown with `✓`.
 
 > USB 2.0/3.0 needs the Extension Pack. WinBridge detects it and falls back to
 > OHCI, showing a warning in the menu instead of failing silently.
+
+## Language
+
+- Default: follow the desktop locale (`LANG` / `LC_ALL`), falling back to
+  English.
+- *Settings → Language*: **Automatic**, **English**, or **العربية**.
+- Override for one run: `WINBRIDGE_LANG=ar winbridge tray`.
+- Arabic switches the whole UI (tray menu, settings dialog, CLI output) to
+  right-to-left.
 
 ## Autostart (optional)
 
@@ -134,7 +146,8 @@ cp ~/.local/share/applications/winbridge.desktop ~/.config/autostart/
 | `RAIL_EXEC_E_NOT_IN_ALLOWLIST` | `fDisabledAllowList` not applied — rerun the guest script as Administrator. |
 | Window never appears but the app runs | Windows client SKUs allow **one** interactive session. WinBridge closes the previous FreeRDP client and resumes the same Windows session, so all previously opened app windows come back. If nothing shows up, run `winbridge doctor` and check `~/.local/state/winbridge/freerdp.log`. |
 | `No system tray available` | Your desktop needs a StatusNotifierItem host (KDE/GNOME with AppIndicator extension). |
-| VM won't power off for host setup | Shut it down from VirtualBox, then run *جهّز الجهاز* again. |
+| VM won't power off for host setup | Shut it down from VirtualBox, then run *Prepare host settings* again. |
+| Text renders in the wrong direction | Set the language explicitly in *Settings → Language* instead of *Automatic*. |
 
 Logs: `~/.local/state/winbridge/freerdp.log` and `journalctl --user`.
 
@@ -151,6 +164,7 @@ Layout:
 ```
 winbridge/
 ├── config.py          # JSON config (~/.config/winbridge)
+├── i18n.py            # English/Arabic strings, RTL flag
 ├── vbox.py            # VBoxManage wrapper (VMs, NAT, USB)
 ├── rdp.py             # FreeRDP command builder + launcher
 ├── setup_guest.py     # host prep + generated Windows script
@@ -159,7 +173,12 @@ winbridge/
 └── __main__.py        # CLI
 ```
 
+Adding a language: copy the `_EN` table in `i18n.py`, translate the values, and
+register the code in `LANGUAGES` / `TRANSLATIONS`.
+
 ## License
 
-MIT — see [LICENSE](LICENSE). VirtualBox is Oracle's; the Extension Pack is
-PUEL-licensed and is *not* redistributed here.
+MIT — see [LICENSE](LICENSE). Copyright © 2026 **Malek Haroun**.
+
+VirtualBox is Oracle's; the Extension Pack is PUEL-licensed and is *not*
+redistributed here.

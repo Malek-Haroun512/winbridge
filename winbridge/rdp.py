@@ -12,6 +12,7 @@ from pathlib import Path
 
 from . import config as cfgmod
 from . import vbox
+from .i18n import t
 
 CANDIDATES = ("xfreerdp3", "xfreerdp", "wlfreerdp")
 
@@ -25,9 +26,7 @@ def freerdp_bin() -> str:
         path = shutil.which(name)
         if path:
             return path
-    raise RdpError(
-        "لم أجد FreeRDP. ثبّته بالأمر:\n  sudo pacman -S freerdp"
-    )
+    raise RdpError(t("err_freerdp_missing"))
 
 
 def port_open(host: str, port: int, timeout: float = 1.0) -> bool:
@@ -49,22 +48,19 @@ def wait_for_port(host: str, port: int, timeout: float = 180.0) -> bool:
 
 def ensure_vm_running(cfg: cfgmod.Config, log=print) -> None:
     if not cfg.vm:
-        raise RdpError("لم يتم اختيار جهاز VirtualBox بعد (Settings ← VM).")
+        raise RdpError(t("err_no_vm_selected"))
     if vbox.is_running(cfg.vm):
         return
     if not cfg.start_vm:
-        raise RdpError(f"الجهاز {cfg.vm} متوقف. شغّله أو فعّل التشغيل التلقائي.")
-    log(f"تشغيل {cfg.vm} …")
+        raise RdpError(t("err_vm_stopped", vm=cfg.vm))
+    log(t("log_starting_vm", vm=cfg.vm))
     vbox.start_headless(cfg.vm)
     deadline = time.time() + 240
     while time.time() < deadline:
         if port_open(cfg.host, cfg.port):
             return
         time.sleep(3)
-    raise RdpError(
-        "الجهاز أقلع لكن منفذ RDP ما فتح. تأكد من تفعيل RDP داخل ويندوز "
-        "(زر «جهّز الجهاز» في الإعدادات)."
-    )
+    raise RdpError(t("err_rdp_port_closed"))
 
 
 def base_args(cfg: cfgmod.Config) -> list[str]:
@@ -138,7 +134,7 @@ def stop_clients(cfg: cfgmod.Config, log=print, timeout: float = 4.0) -> int:
     pids = client_pids(cfg)
     if not pids:
         return 0
-    log(f"إغلاق الاتصال السابق ({len(pids)}) لإعادة استخدام الجلسة …")
+    log(t("log_reusing_session", count=len(pids)))
     for pid in pids:
         try:
             os.kill(pid, signal.SIGTERM)
