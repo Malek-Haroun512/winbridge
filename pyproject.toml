@@ -24,7 +24,8 @@ dependencies = ["PySide6>=6.4"]
 winbridge = "winbridge.__main__:main"
 
 [project.urls]
-Homepage = "https://github.com/your-name/winbridge"
+Homepage = "https://github.com/Malek-Haroun512/winbridge"
+Issues = "https://github.com/Malek-Haroun512/winbridge/issues"
 
 [tool.setuptools]
 packages = ["winbridge"]

@@ -74,7 +74,7 @@ Optional, for USB 2.0/3.0 devices (phones, iPhones, cameras):
 ## Install
 
 ```bash
-git clone <your-fork-url> winbridge && cd winbridge
+git clone https://github.com/Malek-Haroun512/winbridge.git && cd winbridge
 ./install.sh          # user-level: venv in ~/.local/share/winbridge
 winbridge doctor      # sanity check
 winbridge tray        # icon appears in the system tray
