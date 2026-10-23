@@ -1,0 +1,15 @@
+[Desktop Entry]
+Type=Application
+Name=WinBridge
+Name[ar]=WinBridge
+GenericName=Windows applications on Linux
+GenericName[ar]=تطبيقات ويندوز على لينكس
+Comment=Run Windows apps from a VirtualBox VM as native Linux windows
+Comment[ar]=شغّل تطبيقات ويندوز من جهاز VirtualBox كنوافذ لينكس أصلية
+Exec=winbridge tray
+Icon=winbridge
+Terminal=false
+Categories=Utility;System;
+Keywords=windows;virtualbox;rdp;usb;
+StartupNotify=false
+X-GNOME-Autostart-enabled=true

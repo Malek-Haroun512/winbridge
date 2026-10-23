@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "winbridge"
+version = "0.1.0"
+description = "Run Windows applications from a VirtualBox VM as native Linux windows (RDP + RAIL)"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "WinBridge contributors" }]
+keywords = ["virtualbox", "rdp", "freerdp", "rail", "windows", "linux"]
+classifiers = [
+  "Environment :: X11 Applications :: Qt",
+  "Intended Audience :: End Users/Desktop",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: POSIX :: Linux",
+  "Programming Language :: Python :: 3",
+]
+dependencies = ["PySide6>=6.4"]
+
+[project.scripts]
+winbridge = "winbridge.__main__:main"
+
+[project.urls]
+Homepage = "https://github.com/your-name/winbridge"
+
+[tool.setuptools]
+packages = ["winbridge"]
