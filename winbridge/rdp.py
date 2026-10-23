@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import os
 import shutil
+import signal
 import socket
 import subprocess
 import time
@@ -100,10 +102,68 @@ def log_path() -> Path:
     return directory / "freerdp.log"
 
 
+def _cmdline(pid: int) -> str:
+    try:
+        with open(f"/proc/{pid}/cmdline", "rb") as handle:
+            return handle.read().replace(b"\0", b" ").decode("utf-8", "replace")
+    except OSError:
+        return ""
+
+
+def client_pids(cfg: cfgmod.Config) -> list[int]:
+    """FreeRDP processes already connected (or connecting) to this VM."""
+    needle = f"{cfg.host}:{cfg.port}"
+    pids = []
+    for entry in os.listdir("/proc"):
+        if not entry.isdigit():
+            continue
+        pid = int(entry)
+        if pid == os.getpid():
+            continue
+        line = _cmdline(pid)
+        if "freerdp" in line and needle in line:
+            pids.append(pid)
+    return pids
+
+
+def stop_clients(cfg: cfgmod.Config, log=print, timeout: float = 4.0) -> int:
+    """Terminate existing FreeRDP clients so the Windows session can be reused.
+
+    Windows client SKUs allow a single interactive session per user: a second
+    connection takes the session over and the previous client is dropped.  We do
+    that deliberately, once, before connecting instead of letting both clients
+    fight.  A SIGTERM'd client leaves the session *disconnected* (apps keep
+    running), so the next connection resumes it and republishes every window.
+    """
+    pids = client_pids(cfg)
+    if not pids:
+        return 0
+    log(f"إغلاق الاتصال السابق ({len(pids)}) لإعادة استخدام الجلسة …")
+    for pid in pids:
+        try:
+            os.kill(pid, signal.SIGTERM)
+        except OSError:
+            pass
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        if not client_pids(cfg):
+            return len(pids)
+        time.sleep(0.2)
+    for pid in client_pids(cfg):
+        try:
+            os.kill(pid, signal.SIGKILL)
+        except OSError:
+            pass
+    time.sleep(0.5)
+    return len(pids)
+
+
 def launch(cfg: cfgmod.Config, app: str | None = None, name: str | None = None,
            log=print) -> subprocess.Popen:
     """Start FreeRDP detached so it survives the caller (tray/menu) exiting."""
     ensure_vm_running(cfg, log=log)
+    if stop_clients(cfg, log=log):
+        time.sleep(1.0)
     command = build_command(cfg, app=app, name=name)
     handle = open(log_path(), "ab", buffering=0)
     handle.write(f"\n=== {' '.join(command[:2])} {time.strftime('%F %T')} ===\n".encode())

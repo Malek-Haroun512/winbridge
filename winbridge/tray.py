@@ -169,15 +169,27 @@ class Tray:
 
     def _launch_desktop(self) -> None:
         try:
-            rdp.launch(self.cfg, log=lambda _m: None)
+            proc = rdp.launch(self.cfg, log=lambda _m: None)
         except (rdp.RdpError, vbox.VBoxError) as exc:
             self._notify(str(exc), error=True)
+            return
+        QTimer.singleShot(5000, lambda: self._verify(proc, "سطح المكتب"))
 
     def _launch_app(self, target: str, name: str) -> None:
         try:
-            rdp.launch(self.cfg, app=target, name=name, log=lambda _m: None)
+            proc = rdp.launch(self.cfg, app=target, name=name, log=lambda _m: None)
         except (rdp.RdpError, vbox.VBoxError) as exc:
             self._notify(str(exc), error=True)
+            return
+        QTimer.singleShot(5000, lambda: self._verify(proc, name))
+
+    def _verify(self, proc, name: str) -> None:
+        code = proc.poll()
+        if code is not None and code != 0:
+            self._notify(
+                f"تعذّر فتح {name} (رمز {code}). راجع ~/.local/state/winbridge/freerdp.log",
+                error=True,
+            )
 
     def _toggle_usb(self, device: vbox.UsbDevice, attach: bool) -> None:
         if not self.cfg.vm:

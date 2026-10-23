@@ -130,7 +130,7 @@ cp ~/.local/share/applications/winbridge.desktop ~/.config/autostart/
 |---|---|
 | `Kerberos … ATHENA.MIT.EDU` in logs | The guest script sets `UserAuthentication=0`; make sure you ran it. WinBridge connects with `/sec:tls`. |
 | `RAIL_EXEC_E_NOT_IN_ALLOWLIST` | `fDisabledAllowList` not applied — rerun the guest script as Administrator. |
-| Window never appears but the app runs | A second RDP session kicked the first. Windows client SKUs allow **one** interactive session — use the full desktop for multitasking, or one app at a time. |
+| Window never appears but the app runs | Windows client SKUs allow **one** interactive session. WinBridge closes the previous FreeRDP client and resumes the same Windows session, so all previously opened app windows come back. If nothing shows up, run `winbridge doctor` and check `~/.local/state/winbridge/freerdp.log`. |
 | `No system tray available` | Your desktop needs a StatusNotifierItem host (KDE/GNOME with AppIndicator extension). |
 | VM won't power off for host setup | Shut it down from VirtualBox, then run *جهّز الجهاز* again. |
 
