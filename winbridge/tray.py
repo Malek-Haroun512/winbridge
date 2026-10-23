@@ -54,6 +54,13 @@ def app_icon() -> QIcon:
     return QIcon(pixmap)
 
 
+def apply_direction() -> None:
+    """Mirror every widget for right-to-left languages such as Arabic."""
+    QApplication.setLayoutDirection(
+        Qt.RightToLeft if i18n.is_rtl() else Qt.LeftToRight
+    )
+
+
 class Tray:
     def __init__(self, app: QApplication):
         self.app = app
@@ -72,6 +79,7 @@ class Tray:
         self.menu.clear()
         self.cfg = cfgmod.load()
         i18n.set_language(self.cfg.language if self.cfg.language != "auto" else i18n.detect())
+        apply_direction()
 
         header = QAction(self._status_text(), self.menu)
         header.setEnabled(False)
@@ -354,6 +362,7 @@ def main() -> int:
     i18n.set_language(cfg.language if cfg.language != "auto" else i18n.detect())
 
     app = QApplication(sys.argv)
+    apply_direction()
     app.setApplicationName(__app_name__)
     app.setDesktopFileName("winbridge")
     app.setQuitOnLastWindowClosed(False)

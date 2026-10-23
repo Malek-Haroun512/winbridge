@@ -38,6 +38,13 @@ follows your desktop locale automatically and can be changed at any time in
 Nothing listens on an external interface: the port forward is bound to
 `127.0.0.1`.
 
+## Screenshots
+
+| English | العربية |
+|---|---|
+| ![Tray menu](docs/screenshots/tray-en.png) | ![Tray menu in Arabic](docs/screenshots/tray-ar.png) |
+| ![Settings](docs/screenshots/settings-en.png) | ![Settings in Arabic](docs/screenshots/settings-ar.png) |
+
 ## Features
 
 - 🖥️ Full Windows desktop in one window, or **one window per app (RAIL)**.

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import QThread, Qt, Signal
+from PySide6.QtCore import QLocale, QThread, Qt, Signal
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import (
     QApplication,
@@ -82,6 +82,8 @@ class SettingsDialog(QDialog):
         self.host_edit = QLineEdit()
         self.port_spin = QSpinBox()
         self.port_spin.setRange(1024, 65535)
+        # keep Latin digits for ports even on Arabic/Indic number locales
+        self.port_spin.setLocale(QLocale(QLocale.English, QLocale.UnitedStates))
         host_row = QHBoxLayout()
         host_row.addWidget(self.host_edit, 2)
         host_row.addWidget(QLabel(t("lbl_port")))
@@ -124,6 +126,8 @@ class SettingsDialog(QDialog):
         apps_layout = QVBoxLayout(apps_box)
         self.table = QTableWidget(0, 2)
         self.table.setHorizontalHeaderLabels([t("col_name"), t("col_path")])
+        self.table.verticalHeader().setVisible(False)
+        self.table.setMinimumHeight(150)
         self.table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
         apps_layout.addWidget(self.table)
 
