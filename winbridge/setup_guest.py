@@ -231,7 +231,8 @@ def _run_via_guestcontrol(cfg: cfgmod.Config, script: Path, log,
         for args in (
             [
                 "/create", "/tn", task, "/tr", remote,
-                "/sc", "once", "/st", "00:00", "/rl", "HIGHEST", "/f",
+                "/sc", "once", "/st", "00:00", "/rl", "HIGHEST",
+                "/ru", cfg.user, "/rp", cfg.password, "/f",
             ],
             ["/run", "/tn", task],
         ):
@@ -268,7 +269,7 @@ def _run_via_guestcontrol(cfg: cfgmod.Config, script: Path, log,
     return success
 
 
-def wait_for_boot(log=print, seconds: int = 75) -> None:
+def wait_for_boot(log=print, seconds: int = 90) -> None:
     """Give a freshly started Windows time to reach the logon screen.
 
     There is no reliable host-side "boot finished" signal without Guest
@@ -308,10 +309,10 @@ def _open_admin_shell(cfg: cfgmod.Config) -> None:
 
 
 def _console_bootstrap(cfg: cfgmod.Config, port: int, log) -> None:
+    log(t("log_provision_console"))
     _open_admin_shell(cfg)
     name = "winbridge-setup.cmd"
     remote = rf"C:\Windows\Temp\{name}"
-    log(t("log_provision_console"))
     _type(
         cfg.vm,
         f"iwr http://10.0.2.2:{port}/{name} -OutFile {remote} -UseBasicParsing",

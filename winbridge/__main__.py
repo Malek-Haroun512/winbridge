@@ -80,7 +80,7 @@ def cmd_setup(args: argparse.Namespace) -> int:
 
     if not vbox.is_running(cfg.vm):
         vbox.start_headless(cfg.vm)
-        setup_guest.wait_for_boot(log=print)
+        setup_guest.wait_for_boot(log=print, seconds=args.boot_wait)
 
     if args.manual:
         path = setup_guest.write_guest_script(cfg)
@@ -191,9 +191,13 @@ def main(argv: list[str] | None = None) -> int:
 
     setup_parser = _subparser(sub, "setup", help=t("cli_setup_help"))
     setup_parser.add_argument("--vm", help=t("cli_setup_vm_help"))
-    setup_parser.add_argument("--no-start", action="store_true")
+    setup_parser.add_argument("--no-start", action="store_true",
+                              help=t("cli_setup_no_start_help"))
     setup_parser.add_argument("--manual", action="store_true",
                               help=t("cli_setup_manual_help"))
+    setup_parser.add_argument("--boot-wait", type=int, default=90,
+                              metavar="SECONDS",
+                              help=t("cli_setup_boot_wait_help"))
     setup_parser.set_defaults(func=cmd_setup)
 
     _subparser(sub, "doctor", help=t("cli_doctor_help")).set_defaults(func=cmd_doctor)
