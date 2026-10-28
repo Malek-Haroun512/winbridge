@@ -48,12 +48,13 @@ def wait_for_port(host: str, port: int, timeout: float = 180.0) -> bool:
 
 
 def verify_credentials(cfg: cfgmod.Config, security: str | None = None,
-                       timeout: float = 12.0) -> bool:
+                       timeout: float = 12.0) -> bool | None:
     """Check host + credentials with FreeRDP's authenticate-only mode.
 
-    This proves that the guest really accepts RDP before the tray/tray menu
-    reports success; a host NAT listener alone does not (VirtualBox opens it
-    even when nothing is listening inside Windows).
+    Returns ``True`` when Windows accepted the sign-in, ``False`` when it
+    rejected it, and ``None`` when it never answered (a wedged or stripped
+    guest).  A host NAT listener alone proves nothing: VirtualBox opens it
+    even when nothing is listening inside Windows.
     """
     command = [
         freerdp_bin(),
@@ -67,12 +68,24 @@ def verify_credentials(cfg: cfgmod.Config, security: str | None = None,
     if mode in SECURITY_MODES:
         command.append(f"/sec:{mode}")
     try:
-        proc = subprocess.run(
-            command, capture_output=True, text=True, timeout=timeout
+        proc = subprocess.Popen(
+            command,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
         )
-    except (subprocess.TimeoutExpired, OSError):
-        return False
-    match = re.search(r"Authentication only, exit status (\d+)", proc.stdout or "")
+    except OSError:
+        return None
+    try:
+        output, _ = proc.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        # The guest accepted the TCP connection but never finished the
+        # handshake.  FreeRDP prints a bogus "exit status 0" when aborted, so
+        # this case must stay "unknown" instead of being read as success.
+        proc.kill()
+        proc.communicate()
+        return None
+    match = re.search(r"Authentication only, exit status (\d+)", output)
     if match:
         return match.group(1) == "0"
     return proc.returncode == 0

@@ -104,6 +104,10 @@ _EN: dict[str, str] = {
         "Windows once (see below)."
     ),
     "log_setup_complete": "Setup complete. Windows apps will open as normal Linux windows.",
+    "log_setup_unverified": (
+        "Windows is configured, but the sign-in could not be verified. Open an "
+        "app from the tray to test it."
+    ),
     "cli_setup_manual_help": "Skip the automatic Windows configuration",
     "cli_setup_no_start_help": "Only prepare host settings; do not boot the VM",
     "cli_setup_boot_wait_help": "Seconds to wait for a cold Windows boot (default: 90)",
@@ -173,6 +177,7 @@ _EN: dict[str, str] = {
     "lbl_rdp_auth": "RDP sign-in",
     "cli_auth_ok": "accepted",
     "cli_auth_fail": "rejected (check credentials; use stock Windows for 'Lite' builds)",
+    "cli_auth_unknown": "no answer — Windows did not complete the RDP handshake",
     "lbl_security": "RDP security",
     "common_yes": "yes",
     "common_no": "no",
@@ -284,6 +289,10 @@ _AR: dict[str, str] = {
         "(التفاصيل تحت)."
     ),
     "log_setup_complete": "خلص الإعداد. تطبيقات ويندوز رح تفتح كنوافذ لينكس عادية.",
+    "log_setup_unverified": (
+        "ويندوز صار مجهّز، بس ما قدرنا نتأكد من تسجيل الدخول. افتح تطبيق من "
+        "الأيقونة للتجربة."
+    ),
     "cli_setup_manual_help": "تخطّي تجهيز ويندوز التلقائي",
     "cli_setup_no_start_help": "جهّز إعدادات المضيف فقط؛ لا تشغّل الجهاز",
     "cli_setup_boot_wait_help": "ثواني انتظار إقلاع ويندوز البارد (الافتراضي: 90)",
@@ -352,6 +361,7 @@ _AR: dict[str, str] = {
     "lbl_rdp_auth": "تسجيل دخول RDP",
     "cli_auth_ok": "مقبول",
     "cli_auth_fail": "مرفوض (تأكد من البيانات؛ استخدم ويندوز أصلي لنسخ Lite)",
+    "cli_auth_unknown": "ما في جواب — ويندوز ما كمّل مصافحة RDP",
     "lbl_security": "أمان RDP",
     "common_yes": "نعم",
     "common_no": "لا",

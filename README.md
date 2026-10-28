@@ -173,7 +173,7 @@ cp ~/.local/share/applications/winbridge.desktop ~/.config/autostart/
 
 | Symptom | Fix |
 |---|---|
-| `HYBRID_REQUIRED_BY_SERVER` | Stock Windows requires NLA. WinBridge 0.1.1+ negotiates it on its own; on older versions rerun the guest script (it disables NLA) or upgrade. |
+| `HYBRID_REQUIRED_BY_SERVER` | The guest insists on NLA but the client did not offer it. WinBridge negotiates NLA itself; update to the latest version and reconnect. |
 | `Kerberos … ATHENA.MIT.EDU` in logs | Harmless: NLA falls back to NTLM. If your host cannot do NLA at all, set `UserAuthentication=0` in the guest script (`nla=False`) and WinBridge will use plain TLS. |
 | `RAIL_EXEC_E_NOT_IN_ALLOWLIST` | `fDisabledAllowList` not applied — rerun the guest script as Administrator. |
 | Window never appears but the app runs | Windows client SKUs allow **one** interactive session. WinBridge closes the previous FreeRDP client and resumes the same Windows session, so all previously opened app windows come back. If nothing shows up, run `winbridge doctor` and check `~/.local/state/winbridge/freerdp.log`. |

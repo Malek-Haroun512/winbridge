@@ -266,10 +266,13 @@ class SettingsDialog(QDialog):
                 vbox.start_headless(cfg.vm)
                 setup_guest.wait_for_boot(log=log)
             if setup_guest.provision(cfg, log=log):
-                if rdp.verify_credentials(cfg, timeout=20):
-                    log(t("log_setup_complete"))
-                else:
+                verified = rdp.verify_credentials(cfg, timeout=20)
+                if verified is False:
                     log(t("err_rdp_verify"))
+                else:
+                    log(t("log_setup_complete"))
+                    if verified is None:
+                        log(t("log_setup_unverified"))
                 return
             log(t("log_provision_timeout"))
             try:
@@ -295,10 +298,26 @@ class SettingsDialog(QDialog):
 
     def _test(self) -> None:
         cfg = self._collect()
-        if rdp.port_open(cfg.host, cfg.port):
-            self._log(t("log_port_open", host=cfg.host, port=cfg.port))
-        else:
-            self._log(t("log_port_closed", host=cfg.host, port=cfg.port))
+
+        def job(log):
+            if not rdp.port_open(cfg.host, cfg.port):
+                log(t("log_port_closed", host=cfg.host, port=cfg.port))
+                return
+            log(t("log_port_open", host=cfg.host, port=cfg.port))
+            result = rdp.verify_credentials(cfg, timeout=15)
+            if result is True:
+                state = t("cli_auth_ok")
+            elif result is False:
+                state = t("cli_auth_fail")
+            else:
+                state = t("cli_auth_unknown")
+            log(f"{t('lbl_rdp_auth')}: {state}")
+
+        self._busy(True)
+        self.worker = Worker(job, self)
+        self.worker.line.connect(self._log)
+        self.worker.done.connect(self._worker_done)
+        self.worker.start()
 
     def _worker_done(self, ok: bool, message: str) -> None:
         self._busy(False)

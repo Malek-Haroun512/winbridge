@@ -94,12 +94,16 @@ def cmd_setup(args: argparse.Namespace) -> int:
         print(setup_guest.instructions())
         return 1
 
-    if rdp.verify_credentials(cfg, timeout=20):
+    verified = rdp.verify_credentials(cfg, timeout=20)
+    if verified is False:
+        print(t("err_rdp_verify"), file=sys.stderr)
+        return 1
+    if verified is True:
         print(t("log_rdp_ready", host=cfg.host, port=cfg.port))
-        print(t("log_setup_complete"))
-        return 0
-    print(t("err_rdp_verify"), file=sys.stderr)
-    return 1
+    print(t("log_setup_complete"))
+    if verified is None:
+        print(t("log_setup_unverified"))
+    return 0
 
 
 def cmd_doctor(_args: argparse.Namespace) -> int:
@@ -127,10 +131,13 @@ def cmd_doctor(_args: argparse.Namespace) -> int:
         print(f"{t('lbl_rdp_port')}: {yes if port_open else no}")
         if port_open:
             logged_in = rdp.verify_credentials(cfg, timeout=8)
-            print(
-                f"{t('lbl_rdp_auth')}: "
-                f"{t('cli_auth_ok') if logged_in else t('cli_auth_fail')}"
-            )
+            if logged_in is True:
+                auth = t("cli_auth_ok")
+            elif logged_in is False:
+                auth = t("cli_auth_fail")
+            else:
+                auth = t("cli_auth_unknown")
+            print(f"{t('lbl_rdp_auth')}: {auth}")
         try:
             devices = [d for d in vbox.usb_devices() if d.captured]
             print(t("cli_usb_captured", devices=", ".join(d.label for d in devices) or "—"))

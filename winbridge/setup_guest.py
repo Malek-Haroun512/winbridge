@@ -162,9 +162,13 @@ def prepare_host(vm: str, cfg: cfgmod.Config, log=print) -> None:
 # Scancodes (set 1) used to drive the Windows console without Guest Additions.
 SC_ENTER = ("1c", "9c")
 SC_ESC = ("01", "81")
+SC_SPACE = ("39", "b9")
+SC_WIN_L = ("e0", "5b", "26", "a6", "e0", "db")
 SC_WIN_X = ("e0", "5b", "2d", "ad", "e0", "db")
 SC_ALT_Y = ("38", "15", "95", "b8")
 SC_KEY_A = ("1e", "9e")
+SC_CTRL_A = ("1d", "1e", "9e", "9d")
+SC_DELETE = ("e0", "53", "e0", "d3")
 
 
 class _SetupServer(http.server.ThreadingHTTPServer):
@@ -291,21 +295,31 @@ def _press(vm: str, *codes: str) -> None:
 def _open_admin_shell(cfg: cfgmod.Config) -> None:
     """Bring Windows to an elevated PowerShell (Win+X, A).
 
-    Works both at the logon screen (password unlock) and on the desktop, and
-    accepts the UAC prompt when the account is a normal administrator.
+    Locking first makes the flow identical whether Windows is sitting at the
+    logon screen or on an unlocked desktop: the password always lands in the
+    credential box instead of the Start-menu search or the active app.  The
+    spaces/selection keys clear the field in case a keystroke was consumed by
+    the lock-screen wallpaper.  Finally accept the UAC prompt.
     """
-    _press(cfg.vm, *SC_ESC)            # dismiss a lock screen
-    time.sleep(0.8)
+    _press(cfg.vm, *SC_ESC)            # close menus and error dialogs
+    time.sleep(1.0)
+    _press(cfg.vm, *SC_WIN_L)          # lock (no-op at the logon screen)
+    time.sleep(2.0)
+    _press(cfg.vm, *SC_SPACE)          # dismiss the lock-screen wallpaper
+    time.sleep(1.0)
+    _press(cfg.vm, *SC_CTRL_A)         # clear any stray characters
+    _press(cfg.vm, *SC_DELETE)
+    time.sleep(0.5)
     if cfg.password:
         _type(cfg.vm, cfg.password)
-        _press(cfg.vm, *SC_ENTER)      # sign in / unlock
-        time.sleep(7.0)
+    _press(cfg.vm, *SC_ENTER)          # sign in / unlock
+    time.sleep(12.0)
     _press(cfg.vm, *SC_WIN_X)
-    time.sleep(2.0)
+    time.sleep(2.5)
     _press(cfg.vm, *SC_KEY_A)          # "Terminal/PowerShell (Admin)"
-    time.sleep(3.0)
+    time.sleep(4.5)
     _press(cfg.vm, *SC_ALT_Y)          # "Yes" on the UAC consent dialog
-    time.sleep(5.0)
+    time.sleep(6.0)
 
 
 def _console_bootstrap(cfg: cfgmod.Config, port: int, log) -> None:
