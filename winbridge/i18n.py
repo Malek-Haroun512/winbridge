@@ -108,6 +108,23 @@ _EN: dict[str, str] = {
     "err_freerdp_missing": "FreeRDP not found. Install it with:\n  sudo pacman -S freerdp",
     "err_no_vm_selected": "No VirtualBox machine selected yet (Settings → Machine).",
     "err_vm_stopped": "{vm} is powered off. Start it or enable automatic startup.",
+    "err_console_session": (
+        "Windows is signed in inside the VirtualBox window, so the remote "
+        "session was taken over. Sign out in Windows (or close the VM window) "
+        "and try again."
+    ),
+    "err_bad_credentials": (
+        "Windows rejected the user name or password — check them in Settings."
+    ),
+    "err_rail_allowlist": (
+        "Windows blocked the app from starting. Run the Windows setup script "
+        "once (Settings → Prepare host settings) so any application is allowed."
+    ),
+    "err_security_mismatch": (
+        "Windows changed its RDP security settings. Open the app again — "
+        "WinBridge will renegotiate automatically."
+    ),
+    "log_retry_security": "Retrying with {mode} security …",
     "err_rdp_port_closed": "The VM booted but the RDP port never opened. Make sure Remote Desktop is enabled inside Windows (Settings → Prepare host, then run the Windows script).",
     # -------------------------------------------------------------------- cli
     "cli_usb_line": "{mark} {uuid}  {ids}  {label}  [{state}]",
@@ -136,6 +153,7 @@ _EN: dict[str, str] = {
     "lbl_config": "Config",
     "lbl_vm_running": "VM running",
     "lbl_rdp_port": "RDP port open",
+    "lbl_security": "RDP security",
     "common_yes": "yes",
     "common_no": "no",
     "log_warning": "  warning: {message}",
@@ -250,6 +268,22 @@ _AR: dict[str, str] = {
     "err_freerdp_missing": "لم أجد FreeRDP. ثبّته بالأمر:\n  sudo pacman -S freerdp",
     "err_no_vm_selected": "لم يتم اختيار جهاز VirtualBox بعد (الإعدادات ← الجهاز).",
     "err_vm_stopped": "الجهاز {vm} متوقف. شغّله أو فعّل التشغيل التلقائي.",
+    "err_console_session": (
+        "في جلسة مفتوحة داخل نافذة VirtualBox، فانقطع اتصال RDP. سجّل الخروج "
+        "من ويندوز (أو أغلق نافذة الجهاز) وأعد المحاولة."
+    ),
+    "err_bad_credentials": (
+        "ويندوز رفض اسم المستخدم أو كلمة السر — تحقّق منهما في الإعدادات."
+    ),
+    "err_rail_allowlist": (
+        "ويندوز منع تشغيل التطبيق. شغّل سكربت ويندوز مرة واحدة "
+        "(الإعدادات ← تهيئة إعدادات المضيف) للسماح بأي تطبيق."
+    ),
+    "err_security_mismatch": (
+        "تغيّرت إعدادات أمان RDP في ويندوز. افتح التطبيق مرة أخرى — "
+        "سيُعيد WinBridge التفاوض تلقائيًا."
+    ),
+    "log_retry_security": "إعادة المحاولة بأمان {mode} …",
     "err_rdp_port_closed": "الجهاز أقلع لكن منفذ RDP ما فتح. تأكد من تفعيل RDP داخل ويندوز (الإعدادات ← جهّز الجهاز، ثم شغّل سكربت ويندوز).",
     # -------------------------------------------------------------------- cli
     "cli_usb_line": "{mark} {uuid}  {ids}  {label}  [{state}]",
@@ -278,6 +312,7 @@ _AR: dict[str, str] = {
     "lbl_config": "الإعدادات",
     "lbl_vm_running": "الجهاز يعمل",
     "lbl_rdp_port": "منفذ RDP مفتوح",
+    "lbl_security": "أمان RDP",
     "common_yes": "نعم",
     "common_no": "لا",
     "log_warning": "  تحذير: {message}",

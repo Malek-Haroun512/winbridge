@@ -43,6 +43,7 @@ class Config:
     start_vm: bool = True
     usb_capture_on_start: bool = False
     language: str = "auto"
+    security: str = "auto"  # auto | nla | tls
 
     # ---------------------------------------------------------------- helpers
 

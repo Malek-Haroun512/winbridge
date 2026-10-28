@@ -63,29 +63,46 @@ def ensure_vm_running(cfg: cfgmod.Config, log=print) -> None:
     raise RdpError(t("err_rdp_port_closed"))
 
 
-def base_args(cfg: cfgmod.Config) -> list[str]:
-    return [
+SECURITY_MODES = ("nla", "tls")
+LOOPBACK_HOSTS = {"127.0.0.1", "localhost", "::1"}
+NEGOTIATION_ERRORS = (
+    "HYBRID_REQUIRED_BY_SERVER",
+    "HYBRID_NOT_ALLOWED_BY_SERVER",
+    "SSL_REQUIRED_BY_SERVER",
+    "Protocol Security Negotiation Failure",
+)
+
+
+def base_args(cfg: cfgmod.Config, security: str | None = None) -> list[str]:
+    # A NAT forward bound to loopback cannot be intercepted, and Windows
+    # generates a fresh self-signed certificate on every installation, so
+    # /cert:tofu would block the first connection after a reinstall.
+    cert = "/cert:ignore" if cfg.host in LOOPBACK_HOSTS else "/cert:tofu"
+    args = [
         f"/v:{cfg.host}:{cfg.port}",
         f"/u:{cfg.user}",
         f"/p:{cfg.password}",
-        "/cert:tofu",
-        "/sec:tls",
+        cert,
         "+clipboard",
         "-wallpaper",
         f"/drive:home,{Path.home()}",
         "+auto-reconnect",
     ]
+    if security in SECURITY_MODES:
+        args.append(f"/sec:{security}")
+    return args
 
 
 def build_command(cfg: cfgmod.Config, app: str | None = None,
-                  name: str | None = None, size: str = "1600x900") -> list[str]:
-    args = [freerdp_bin(), *base_args(cfg)]
+                  name: str | None = None, size: str = "1600x900",
+                  security: str | None = None) -> list[str]:
+    args = [freerdp_bin(), *base_args(cfg, security=security)]
     if app:
         title = name or Path(app.replace("\\", "/")).stem
         args += [
             f"/size:{size}",
             f"/wm-class:winbridge-{title}",
-            f'/app:program:{app},name:{title},cmd:""',
+            f"/app:program:{app},name:{title}",
         ]
     else:
         args += ["/dynamic-resolution", f"/size:{size}"]
@@ -154,13 +171,34 @@ def stop_clients(cfg: cfgmod.Config, log=print, timeout: float = 4.0) -> int:
     return len(pids)
 
 
-def launch(cfg: cfgmod.Config, app: str | None = None, name: str | None = None,
-           log=print) -> subprocess.Popen:
-    """Start FreeRDP detached so it survives the caller (tray/menu) exiting."""
-    ensure_vm_running(cfg, log=log)
-    if stop_clients(cfg, log=log):
-        time.sleep(1.0)
-    command = build_command(cfg, app=app, name=name)
+def current_attempt_log(lines: int = 160) -> str:
+    """FreeRDP log for the most recent launch only."""
+    try:
+        text = log_path().read_text("utf-8", "replace")
+    except OSError:
+        return ""
+    chunk = "\n".join(text.splitlines()[-lines:])
+    blocks = chunk.split("\n=== ")
+    return blocks[-1] if blocks else chunk
+
+
+def diagnose() -> str:
+    """Return a translation key describing the last connection failure."""
+    tail = current_attempt_log()
+    if "RAIL_EXEC_E_NOT_IN_ALLOWLIST" in tail:
+        return "err_rail_allowlist"
+    if "LOGON_FAILURE" in tail or "ERRCONNECT_LOGON_FAILURE" in tail:
+        return "err_bad_credentials"
+    if "RPC_INITIATED_DISCONNECT" in tail:
+        return "err_console_session"
+    if any(marker in tail for marker in NEGOTIATION_ERRORS):
+        return "err_security_mismatch"
+    return ""
+
+
+def _spawn(cfg: cfgmod.Config, app: str | None, name: str | None,
+           security: str | None) -> subprocess.Popen:
+    command = build_command(cfg, app=app, name=name, security=security)
     handle = open(log_path(), "ab", buffering=0)
     handle.write(f"\n=== {' '.join(command[:2])} {time.strftime('%F %T')} ===\n".encode())
     return subprocess.Popen(
@@ -170,3 +208,58 @@ def launch(cfg: cfgmod.Config, app: str | None = None, name: str | None = None,
         stderr=subprocess.STDOUT,
         start_new_session=True,
     )
+
+
+def _exited_within(proc: subprocess.Popen, seconds: float) -> int | None:
+    deadline = time.time() + seconds
+    while time.time() < deadline:
+        if proc.poll() is not None:
+            return proc.returncode
+        time.sleep(0.2)
+    return None
+
+
+def _remember_security(cfg: cfgmod.Config, mode: str) -> None:
+    if cfg.security == mode:
+        return
+    cfg.security = mode
+    try:
+        cfgmod.save(cfg)
+    except OSError:
+        pass
+
+
+def _negotiation_failed() -> bool:
+    tail = current_attempt_log()
+    return any(marker in tail for marker in NEGOTIATION_ERRORS)
+
+
+def launch(cfg: cfgmod.Config, app: str | None = None, name: str | None = None,
+           log=print) -> subprocess.Popen:
+    """Start FreeRDP detached so it survives the caller (tray/menu) exiting.
+
+    Windows 10/11 enforces NLA out of the box, while a guest prepared by
+    WinBridge's script accepts plain TLS.  Instead of hard-coding one mode we
+    try both once, keep the one that works in the config, and from then on
+    connect straight away.
+    """
+    ensure_vm_running(cfg, log=log)
+    if stop_clients(cfg, log=log):
+        time.sleep(1.0)
+
+    if cfg.security in SECURITY_MODES:
+        # Remembered from an earlier run: connect immediately.
+        return _spawn(cfg, app, name, cfg.security)
+
+    proc = None
+    for index, mode in enumerate(("nla", "tls")):
+        proc = _spawn(cfg, app, name, mode)
+        if index == 1:
+            return proc
+        if _exited_within(proc, 4.0) is None:
+            _remember_security(cfg, mode)
+            return proc
+        if not _negotiation_failed():
+            return proc
+        log(t("log_retry_security", mode="tls"))
+    return proc  # pragma: no cover - the loop always returns

@@ -292,8 +292,16 @@ class Tray:
 
     def _verify(self, proc, name: str) -> None:
         code = proc.poll()
-        if code is not None and code != 0:
-            self._notify(t("err_launch", name=name, code=code), error=True)
+        if code is None or code == 0:
+            return
+        key = rdp.diagnose()
+        if key == "err_security_mismatch":
+            # The guest switched between NLA and TLS (e.g. after a reinstall):
+            # clear the remembered mode so the next launch probes again.
+            cfg = cfgmod.load()
+            cfg.security = "auto"
+            cfgmod.save(cfg)
+        self._notify(t(key) if key else t("err_launch", name=name, code=code), error=True)
 
     def _toggle_usb(self, device: vbox.UsbDevice, attach: bool) -> None:
         if not self.cfg.vm:

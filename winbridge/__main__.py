@@ -98,6 +98,7 @@ def cmd_doctor(_args: argparse.Namespace) -> int:
     )
     cfg = cfgmod.load()
     print(f"{t('lbl_config')}: {cfgmod.CONFIG_PATH} (vm={cfg.vm or '—'}, port={cfg.port})")
+    print(f"{t('lbl_security')}: {cfg.security}")
     if cfg.vm:
         yes, no = t("common_yes"), t("common_no")
         print(f"{t('lbl_vm_running')}: {yes if vbox.is_running(cfg.vm) else no}")

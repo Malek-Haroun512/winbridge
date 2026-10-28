@@ -35,8 +35,16 @@ follows your desktop locale automatically and can be changed at any time in
    the application window is streamed and it behaves like a normal X11/Wayland
    window: taskbar entry, alt-tab, clipboard, window manager decorations.
 
+**Security mode is negotiated automatically.** A stock Windows only accepts NLA,
+while a guest prepared by `winbridge-setup.cmd` accepts plain TLS. WinBridge
+tries NLA first, falls back to TLS when the guest refuses it, and remembers the
+mode in `config.json` (`"security": "nla" | "tls" | "auto"`). If Windows changes
+its settings later, the next attempt renegotiates.
+
 Nothing listens on an external interface: the port forward is bound to
-`127.0.0.1`.
+`127.0.0.1`. Because of that the RDP certificate is not verified either — Windows
+generates a new self-signed certificate on every installation, so pinning it
+would break the first connection after a reinstall.
 
 ## Screenshots
 
@@ -149,11 +157,15 @@ cp ~/.local/share/applications/winbridge.desktop ~/.config/autostart/
 
 | Symptom | Fix |
 |---|---|
-| `Kerberos … ATHENA.MIT.EDU` in logs | The guest script sets `UserAuthentication=0`; make sure you ran it. WinBridge connects with `/sec:tls`. |
+| `HYBRID_REQUIRED_BY_SERVER` | Stock Windows requires NLA. WinBridge 0.1.1+ negotiates it on its own; on older versions rerun the guest script (it disables NLA) or upgrade. |
+| `Kerberos … ATHENA.MIT.EDU` in logs | Harmless: NLA falls back to NTLM. The guest script can disable NLA entirely so plain TLS is used. |
 | `RAIL_EXEC_E_NOT_IN_ALLOWLIST` | `fDisabledAllowList` not applied — rerun the guest script as Administrator. |
 | Window never appears but the app runs | Windows client SKUs allow **one** interactive session. WinBridge closes the previous FreeRDP client and resumes the same Windows session, so all previously opened app windows come back. If nothing shows up, run `winbridge doctor` and check `~/.local/state/winbridge/freerdp.log`. |
 | `No system tray available` | Your desktop needs a StatusNotifierItem host (KDE/GNOME with AppIndicator extension). |
 | VM won't power off for host setup | Shut it down from VirtualBox, then run *Prepare host settings* again. |
+| Nothing opens on a freshly installed Windows | Windows resets RDP, NLA, the firewall and the RemoteApp allowlist. Run *Prepare host settings* and then `winbridge-setup.cmd` as Administrator inside the new install. |
+| App windows never appear but the desktop works | The RemoteApp allowlist is on: run `winbridge-setup.cmd` as Administrator (`fDisabledAllowList=1`). |
+| Session drops right after connecting | Windows allows one interactive session. Sign out inside the VirtualBox window (or close it) before opening apps from the tray. |
 | Text renders in the wrong direction | Set the language explicitly in *Settings → Language* instead of *Automatic*. |
 
 Logs: `~/.local/state/winbridge/freerdp.log` and `journalctl --user`.
