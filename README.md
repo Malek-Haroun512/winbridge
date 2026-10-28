@@ -26,19 +26,23 @@ follows your desktop locale automatically and can be changed at any time in
 
 1. **Host settings** — adds a NAT port-forward (`127.0.0.1:<port>` → guest
    `3389`), enables the VM's USB controller and boots it headless.
-2. **Guest settings** — a generated `winbridge-setup.cmd` enables Remote
-   Desktop (keeping NLA, which WinBridge negotiates), opens the firewall and
-   sets `TSAppAllowList\fDisabledAllowList=1` so **any** executable can be
-   published as a RemoteApp.
+2. **Guest settings — automatic** — WinBridge configures Windows itself. With
+   Guest Additions it copies and runs the setup script through the guest
+   service (elevated via a one-shot scheduled task); without them it drives
+   the VM console (logon, elevated PowerShell, fetch the script). The script
+   enables Remote Desktop (keeping NLA), opens the firewall, disables
+   auto-logon and sets `TSAppAllowList\fDisabledAllowList=1` so **any**
+   executable can be published as a RemoteApp. A `winbridge-setup.cmd` is
+   still generated for the `--manual` fallback.
 3. **Running apps** — FreeRDP connects with `/app:program:...` (RAIL), so only
    the application window is streamed and it behaves like a normal X11/Wayland
    window: taskbar entry, alt-tab, clipboard, window manager decorations.
 
 **Security mode is negotiated automatically.** A stock Windows only accepts NLA,
-while a guest prepared by `winbridge-setup.cmd` accepts plain TLS. WinBridge
-tries NLA first, falls back to TLS when the guest refuses it, and remembers the
-mode in `config.json` (`"security": "nla" | "tls" | "auto"`). If Windows changes
-its settings later, the next attempt renegotiates.
+while a guest configured for plain TLS is also handled. WinBridge tries NLA
+first, falls back to TLS when the guest refuses it, and remembers the mode in
+`config.json` (`"security": "nla" | "tls" | "auto"`). If Windows changes its
+settings later, the next attempt renegotiates.
 
 Nothing listens on an external interface: the port forward is bound to
 `127.0.0.1`. Because of that the RDP certificate is not verified either — Windows
@@ -99,16 +103,29 @@ winbridge tray        # icon appears in the system tray
 
 ## First-time setup
 
-1. **Create/choose a VM** in VirtualBox with Windows 10/11 Pro and Guest
-   Additions. Boot it once and create your user (or let WinBridge use an
-   existing one).
-2. **Open WinBridge → Settings**, pick the VM, fill user/password (the same
-   Windows account), press **Prepare host settings**. This powers the VM off,
-   adds the NAT rule, enables USB, boots it headless and writes
-   `~/.config/winbridge/winbridge-setup.cmd`.
-3. **Inside Windows** copy that `.cmd` in, right-click → *Run as
-   administrator*, wait for `3389 … LISTENING`.
-4. Back in Settings press **Test connection**. Then open an app from the tray.
+You install VirtualBox and Windows once. After that **WinBridge configures
+Windows for you** — no registry edits, no scripts to copy, no manual RDP
+steps.
+
+1. **Create a VM** in VirtualBox with a **stock Windows 10/11** ISO. Boot it
+   once and finish the Windows out-of-box setup (create the account you will
+   use). Guest Additions are optional; WinBridge works without them.
+2. **Open WinBridge → Settings**, pick the VM and fill in the same Windows
+   user/password, then press **Prepare host settings** (or run
+   `winbridge setup --vm <name>`). WinBridge adds the NAT rule, enables USB,
+   boots the VM and configures Windows automatically — Guest Additions first,
+   console automation as the fallback. It then verifies a real RDP sign-in.
+3. Open an app from the tray. That's it.
+
+If Windows cannot be reached automatically (for example a heavily stripped
+"Lite" build), WinBridge writes `~/.config/winbridge/winbridge-setup.cmd` and
+shows the one remaining manual step. You can force that path with
+`winbridge setup --manual`.
+
+> **Use a stock Windows image.** Cut-down "Lite" builds remove the Remote
+> Desktop session components and reject every RDP logon with
+> `ERRINFO_RPC_INITIATED_DISCONNECT`. WinBridge detects this during setup and
+> tells you; the fix is to install normal Windows 10/11.
 
 Add the apps you want in **Settings → Applications** (name + `C:\full\path.exe`).
 They show up in the tray menu and can be launched from the CLI:
@@ -162,9 +179,10 @@ cp ~/.local/share/applications/winbridge.desktop ~/.config/autostart/
 | Window never appears but the app runs | Windows client SKUs allow **one** interactive session. WinBridge closes the previous FreeRDP client and resumes the same Windows session, so all previously opened app windows come back. If nothing shows up, run `winbridge doctor` and check `~/.local/state/winbridge/freerdp.log`. |
 | `No system tray available` | Your desktop needs a StatusNotifierItem host (KDE/GNOME with AppIndicator extension). |
 | VM won't power off for host setup | Shut it down from VirtualBox, then run *Prepare host settings* again. |
-| Nothing opens on a freshly installed Windows | Windows resets RDP, NLA, the firewall and the RemoteApp allowlist. Run *Prepare host settings* and then `winbridge-setup.cmd` as Administrator inside the new install. |
-| App windows never appear but the desktop works | The RemoteApp allowlist is on: run `winbridge-setup.cmd` as Administrator (`fDisabledAllowList=1`). |
-| Session drops right after connecting | Windows allows one interactive session. Sign out inside the VirtualBox window (or close it) before opening apps from the tray. |
+| Nothing opens on a freshly installed Windows | Windows resets RDP, NLA, the firewall and the RemoteApp allowlist. Run *Prepare host settings* again; it reconfigures the guest automatically. |
+| App windows never appear but the desktop works | The RemoteApp allowlist is missing: run *Prepare host settings* again (`fDisabledAllowList=1`). |
+| Setup says Windows rejected the RDP sign-in | Check the user/password first. If they are right, the image is probably a stripped "Lite" build — install stock Windows 10/11. |
+| Session drops right after connecting | Another session is taking the console back (common on modified images). WinBridge disables auto-logon; use a stock Windows image if it persists. |
 | Text renders in the wrong direction | Set the language explicitly in *Settings → Language* instead of *Automatic*. |
 
 Logs: `~/.local/state/winbridge/freerdp.log` and `journalctl --user`.

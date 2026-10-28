@@ -134,7 +134,64 @@ def guest_shutdown(name: str, user: str, password: str, timeout: int = 90) -> bo
     return wait_poweroff(name, timeout)
 
 
+# ------------------------------------------------------------------ guest input
+
+
+def keyboard_text(name: str, text: str) -> None:
+    """Type *text* into the guest's console (works even at the logon screen)."""
+    if not text:
+        return
+    run(["controlvm", name, "keyboardputstring", text], timeout=30, check=False)
+
+
+def keyboard_scancode(name: str, *codes: str) -> None:
+    """Send raw PC scancodes (hex) to the guest's console."""
+    if not codes:
+        return
+    run(["controlvm", name, "keyboardputscancode", *codes], timeout=30, check=False)
+
+
+def screenshot(name: str, path: Path) -> bool:
+    try:
+        run(["controlvm", name, "screenshotpng", str(path)], timeout=30, check=False)
+        return path.is_file()
+    except VBoxError:
+        return False
+
+
+def guest_additions(name: str) -> tuple[int, str]:
+    """Return ``(run_level, version)`` reported by Guest Additions."""
+    try:
+        info = machine_info(name)
+    except VBoxError:
+        return 0, ""
+    try:
+        level = int(info.get("GuestAdditionsRunLevel", "0") or 0)
+    except ValueError:
+        level = 0
+    return level, info.get("GuestAdditionsVersion", "")
+
+
 # ------------------------------------------------------------------ port forward
+
+
+def port_forward_exists(vm: str, host_port: int, guest_port: int = 3389,
+                        host_ip: str = "127.0.0.1") -> bool:
+    """True when the exact RDP forward (host ip/port -> guest port) is present."""
+    info = machine_info(vm)
+    for key, value in info.items():
+        if not key.startswith("Forwarding("):
+            continue
+        parts = [part.strip() for part in value.split(",")]
+        if (
+            len(parts) >= 6
+            and parts[1] == "tcp"
+            and parts[2] == host_ip
+            and parts[3] == str(host_port)
+            and parts[5] == str(guest_port)
+        ):
+            return True
+    return False
 
 
 def ensure_port_forward(vm: str, host_port: int, guest_port: int = 3389,
@@ -143,13 +200,9 @@ def ensure_port_forward(vm: str, host_port: int, guest_port: int = 3389,
 
     Returns True when a rule was added.
     """
+    if port_forward_exists(vm, host_port, guest_port=guest_port, host_ip=host_ip):
+        return False
     info = machine_info(vm)
-    for key, value in info.items():
-        if not key.startswith("Forwarding("):
-            continue
-        parts = value.split(",")
-        if len(parts) >= 6 and parts[1] == "tcp" and parts[5].strip() == str(guest_port):
-            return False
     if info.get("nic1") != "nat" and info.get("natnet1", "") == "":
         raise VBoxError(t("err_nat_required", vm=vm))
     suffix = "1" if info.get("nic1") == "nat" else "2"

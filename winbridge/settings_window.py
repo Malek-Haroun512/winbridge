@@ -261,12 +261,17 @@ class SettingsDialog(QDialog):
 
         def job(log):
             setup_guest.prepare_host(cfg.vm, cfg, log=log)
-            log(t("log_booting"))
-            vbox.start_headless(cfg.vm)
-            if rdp.wait_for_port(cfg.host, cfg.port, timeout=240):
-                log(t("log_rdp_ready", host=cfg.host, port=cfg.port))
-            else:
-                log(t("log_rdp_not_ready"))
+            if not vbox.is_running(cfg.vm):
+                log(t("log_booting"))
+                vbox.start_headless(cfg.vm)
+                setup_guest.wait_for_boot(log=log)
+            if setup_guest.provision(cfg, log=log):
+                if rdp.verify_credentials(cfg, timeout=20):
+                    log(t("log_setup_complete"))
+                else:
+                    log(t("err_rdp_verify"))
+                return
+            log(t("log_provision_timeout"))
             try:
                 path = setup_guest.write_guest_script(cfg)
                 log(t("log_script_written", path=path))

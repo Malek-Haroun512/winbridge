@@ -95,6 +95,16 @@ _EN: dict[str, str] = {
     "log_booting": "Booting the VM …",
     "log_rdp_ready": "RDP ready on {host}:{port}",
     "log_rdp_not_ready": "RDP port is not open yet — run the Windows script inside the guest.",
+    "log_waiting_boot": "Waiting for Windows to finish booting ({seconds}s) …",
+    "log_provision_service": "Configuring Windows through Guest Additions …",
+    "log_provision_console": "Configuring Windows automatically — this takes a few seconds …",
+    "log_provision_done": "Windows is configured. No manual steps needed.",
+    "log_provision_timeout": (
+        "Automatic setup did not finish. Run the generated script inside "
+        "Windows once (see below)."
+    ),
+    "log_setup_complete": "Setup complete. Windows apps will open as normal Linux windows.",
+    "cli_setup_manual_help": "Skip the automatic Windows configuration",
     "log_script_written": "Windows script: {path}",
     "log_script_failed": "Could not write the script: {message}",
     "log_reusing_session": "Closing the previous connection ({count}) to reuse the session …",
@@ -126,6 +136,11 @@ _EN: dict[str, str] = {
     ),
     "log_retry_security": "Retrying with {mode} security …",
     "err_rdp_port_closed": "The VM booted but the RDP port never opened. Make sure Remote Desktop is enabled inside Windows (Settings → Prepare host, then run the Windows script).",
+    "err_rdp_verify": (
+        "Windows is running but did not accept the RDP sign-in. Check the user "
+        "name and password in Settings. If they are correct, use a stock "
+        "Windows 10/11 image: stripped 'Lite' builds often break Remote Desktop."
+    ),
     # -------------------------------------------------------------------- cli
     "cli_usb_line": "{mark} {uuid}  {ids}  {label}  [{state}]",
     "cli_usb_no_match": "No USB device matching {target}",
@@ -153,6 +168,9 @@ _EN: dict[str, str] = {
     "lbl_config": "Config",
     "lbl_vm_running": "VM running",
     "lbl_rdp_port": "RDP port open",
+    "lbl_rdp_auth": "RDP sign-in",
+    "cli_auth_ok": "accepted",
+    "cli_auth_fail": "rejected (check credentials; use stock Windows for 'Lite' builds)",
     "lbl_security": "RDP security",
     "common_yes": "yes",
     "common_no": "no",
@@ -255,6 +273,16 @@ _AR: dict[str, str] = {
     "log_booting": "إقلاع الجهاز …",
     "log_rdp_ready": "RDP جاهز على {host}:{port}",
     "log_rdp_not_ready": "لم يُفتح منفذ RDP بعد — شغّل سكربت ويندوز داخل الجهاز.",
+    "log_waiting_boot": "عم نستنى ويندوز يخلص إقلاع ({seconds} ثانية) …",
+    "log_provision_service": "تجهيز ويندوز عبر Guest Additions …",
+    "log_provision_console": "تجهيز ويندوز تلقائيًا — بياخد ثواني …",
+    "log_provision_done": "ويندوز صار جاهز، بلا أي خطوة يدوية.",
+    "log_provision_timeout": (
+        "التجهيز التلقائي ما خلص. شغّل السكربت المولّد جوّا ويندوز مرة واحدة "
+        "(التفاصيل تحت)."
+    ),
+    "log_setup_complete": "خلص الإعداد. تطبيقات ويندوز رح تفتح كنوافذ لينكس عادية.",
+    "cli_setup_manual_help": "تخطّي تجهيز ويندوز التلقائي",
     "log_script_written": "سكربت ويندوز: {path}",
     "log_script_failed": "تعذّر كتابة السكربت: {message}",
     "log_reusing_session": "إغلاق الاتصال السابق ({count}) لإعادة استخدام الجلسة …",
@@ -285,6 +313,11 @@ _AR: dict[str, str] = {
     ),
     "log_retry_security": "إعادة المحاولة بأمان {mode} …",
     "err_rdp_port_closed": "الجهاز أقلع لكن منفذ RDP ما فتح. تأكد من تفعيل RDP داخل ويندوز (الإعدادات ← جهّز الجهاز، ثم شغّل سكربت ويندوز).",
+    "err_rdp_verify": (
+        "ويندوز شغّال بس رفض تسجيل الدخول عبر RDP. تأكد من اسم المستخدم "
+        "وكلمة المرور بالإعدادات. إذا صحّين، استخدم نسخة ويندوز 10/11 أصلية: "
+        "نسخ Lite المقصوصة غالبًا بتكسر Remote Desktop."
+    ),
     # -------------------------------------------------------------------- cli
     "cli_usb_line": "{mark} {uuid}  {ids}  {label}  [{state}]",
     "cli_usb_no_match": "لم أجد جهاز USB مطابقًا لـ {target}",
@@ -312,6 +345,9 @@ _AR: dict[str, str] = {
     "lbl_config": "الإعدادات",
     "lbl_vm_running": "الجهاز يعمل",
     "lbl_rdp_port": "منفذ RDP مفتوح",
+    "lbl_rdp_auth": "تسجيل دخول RDP",
+    "cli_auth_ok": "مقبول",
+    "cli_auth_fail": "مرفوض (تأكد من البيانات؛ استخدم ويندوز أصلي لنسخ Lite)",
     "lbl_security": "أمان RDP",
     "common_yes": "نعم",
     "common_no": "لا",

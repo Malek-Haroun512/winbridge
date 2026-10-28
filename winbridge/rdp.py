@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import re
 import shutil
 import signal
 import socket
@@ -44,6 +45,37 @@ def wait_for_port(host: str, port: int, timeout: float = 180.0) -> bool:
             return True
         time.sleep(2)
     return False
+
+
+def verify_credentials(cfg: cfgmod.Config, security: str | None = None,
+                       timeout: float = 12.0) -> bool:
+    """Check host + credentials with FreeRDP's authenticate-only mode.
+
+    This proves that the guest really accepts RDP before the tray/tray menu
+    reports success; a host NAT listener alone does not (VirtualBox opens it
+    even when nothing is listening inside Windows).
+    """
+    command = [
+        freerdp_bin(),
+        f"/v:{cfg.host}:{cfg.port}",
+        f"/u:{cfg.user}",
+        f"/p:{cfg.password}",
+        "/cert:ignore",
+        "+auth-only",
+    ]
+    mode = security or cfg.security
+    if mode in SECURITY_MODES:
+        command.append(f"/sec:{mode}")
+    try:
+        proc = subprocess.run(
+            command, capture_output=True, text=True, timeout=timeout
+        )
+    except (subprocess.TimeoutExpired, OSError):
+        return False
+    match = re.search(r"Authentication only, exit status (\d+)", proc.stdout or "")
+    if match:
+        return match.group(1) == "0"
+    return proc.returncode == 0
 
 
 def ensure_vm_running(cfg: cfgmod.Config, log=print) -> None:

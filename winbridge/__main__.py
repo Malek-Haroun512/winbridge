@@ -70,15 +70,36 @@ def cmd_setup(args: argparse.Namespace) -> int:
     if not cfg.vm:
         print(t("cli_setup_need_vm"), file=sys.stderr)
         return 1
+
     setup_guest.prepare_host(cfg.vm, cfg, log=print)
-    path = setup_guest.write_guest_script(cfg)
-    print(f"\n{t('log_script_written', path=path)}\n")
-    print(setup_guest.instructions())
-    if not args.no_start:
+    if args.no_start:
+        path = setup_guest.write_guest_script(cfg)
+        print(f"\n{t('log_script_written', path=path)}\n")
+        print(setup_guest.instructions())
+        return 0
+
+    if not vbox.is_running(cfg.vm):
         vbox.start_headless(cfg.vm)
-        if rdp.wait_for_port(cfg.host, cfg.port, timeout=240):
-            print(t("log_rdp_ready", host=cfg.host, port=cfg.port))
-    return 0
+        setup_guest.wait_for_boot(log=print)
+
+    if args.manual:
+        path = setup_guest.write_guest_script(cfg)
+        print(f"\n{t('log_script_written', path=path)}\n")
+        print(setup_guest.instructions())
+        return 0
+
+    if not setup_guest.provision(cfg, log=print):
+        path = setup_guest.write_guest_script(cfg)
+        print(f"\n{t('log_script_written', path=path)}\n")
+        print(setup_guest.instructions())
+        return 1
+
+    if rdp.verify_credentials(cfg, timeout=20):
+        print(t("log_rdp_ready", host=cfg.host, port=cfg.port))
+        print(t("log_setup_complete"))
+        return 0
+    print(t("err_rdp_verify"), file=sys.stderr)
+    return 1
 
 
 def cmd_doctor(_args: argparse.Namespace) -> int:
@@ -102,7 +123,14 @@ def cmd_doctor(_args: argparse.Namespace) -> int:
     if cfg.vm:
         yes, no = t("common_yes"), t("common_no")
         print(f"{t('lbl_vm_running')}: {yes if vbox.is_running(cfg.vm) else no}")
-        print(f"{t('lbl_rdp_port')}: {yes if rdp.port_open(cfg.host, cfg.port) else no}")
+        port_open = rdp.port_open(cfg.host, cfg.port)
+        print(f"{t('lbl_rdp_port')}: {yes if port_open else no}")
+        if port_open:
+            logged_in = rdp.verify_credentials(cfg, timeout=8)
+            print(
+                f"{t('lbl_rdp_auth')}: "
+                f"{t('cli_auth_ok') if logged_in else t('cli_auth_fail')}"
+            )
         try:
             devices = [d for d in vbox.usb_devices() if d.captured]
             print(t("cli_usb_captured", devices=", ".join(d.label for d in devices) or "—"))
@@ -164,6 +192,8 @@ def main(argv: list[str] | None = None) -> int:
     setup_parser = _subparser(sub, "setup", help=t("cli_setup_help"))
     setup_parser.add_argument("--vm", help=t("cli_setup_vm_help"))
     setup_parser.add_argument("--no-start", action="store_true")
+    setup_parser.add_argument("--manual", action="store_true",
+                              help=t("cli_setup_manual_help"))
     setup_parser.set_defaults(func=cmd_setup)
 
     _subparser(sub, "doctor", help=t("cli_doctor_help")).set_defaults(func=cmd_doctor)
