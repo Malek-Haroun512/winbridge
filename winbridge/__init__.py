@@ -3,5 +3,5 @@
 Public API is intentionally small: the GUI/CLI import from here.
 """
 
-__version__ = "0.1.1"
+__version__ = "0.1.2"
 __app_name__ = "WinBridge"

@@ -27,9 +27,8 @@ follows your desktop locale automatically and can be changed at any time in
 1. **Host settings** — adds a NAT port-forward (`127.0.0.1:<port>` → guest
    `3389`), enables the VM's USB controller and boots it headless.
 2. **Guest settings** — a generated `winbridge-setup.cmd` enables Remote
-   Desktop, disables NLA (so plain TLS works even on hosts with a broken
-   Kerberos config), opens the firewall and sets
-   `TSAppAllowList\fDisabledAllowList=1` so **any** executable can be
+   Desktop (keeping NLA, which WinBridge negotiates), opens the firewall and
+   sets `TSAppAllowList\fDisabledAllowList=1` so **any** executable can be
    published as a RemoteApp.
 3. **Running apps** — FreeRDP connects with `/app:program:...` (RAIL), so only
    the application window is streamed and it behaves like a normal X11/Wayland
@@ -158,7 +157,7 @@ cp ~/.local/share/applications/winbridge.desktop ~/.config/autostart/
 | Symptom | Fix |
 |---|---|
 | `HYBRID_REQUIRED_BY_SERVER` | Stock Windows requires NLA. WinBridge 0.1.1+ negotiates it on its own; on older versions rerun the guest script (it disables NLA) or upgrade. |
-| `Kerberos … ATHENA.MIT.EDU` in logs | Harmless: NLA falls back to NTLM. The guest script can disable NLA entirely so plain TLS is used. |
+| `Kerberos … ATHENA.MIT.EDU` in logs | Harmless: NLA falls back to NTLM. If your host cannot do NLA at all, set `UserAuthentication=0` in the guest script (`nla=False`) and WinBridge will use plain TLS. |
 | `RAIL_EXEC_E_NOT_IN_ALLOWLIST` | `fDisabledAllowList` not applied — rerun the guest script as Administrator. |
 | Window never appears but the app runs | Windows client SKUs allow **one** interactive session. WinBridge closes the previous FreeRDP client and resumes the same Windows session, so all previously opened app windows come back. If nothing shows up, run `winbridge doctor` and check `~/.local/state/winbridge/freerdp.log`. |
 | `No system tray available` | Your desktop needs a StatusNotifierItem host (KDE/GNOME with AppIndicator extension). |

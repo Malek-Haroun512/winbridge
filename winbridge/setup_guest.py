@@ -66,7 +66,7 @@ def instructions() -> str:
     return t("instructions_guest")
 
 
-def render_guest_script(cfg: cfgmod.Config, nla: bool = False) -> str:
+def render_guest_script(cfg: cfgmod.Config, nla: bool = True) -> str:
     return (
         SETUP_SCRIPT.replace("__USER__", cfg.user or "Admin")
         .replace("__PASSWORD__", cfg.password or "")
@@ -75,7 +75,7 @@ def render_guest_script(cfg: cfgmod.Config, nla: bool = False) -> str:
 
 
 def write_guest_script(cfg: cfgmod.Config, directory: Path | None = None,
-                       nla: bool = False) -> Path:
+                       nla: bool = True) -> Path:
     target = (directory or cfgmod.config_dir()) / "winbridge-setup.cmd"
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(render_guest_script(cfg, nla=nla), "utf-8", newline="\r\n")
